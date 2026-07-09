@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AppShell, Box } from "@mantine/core";
 import JoinPage from "./pages/JoinPage";
+import LoginPage from "./pages/LoginPage";
 import CreateLeaguePage from "./pages/CreateLeaguePage";
 import PickTabPage from "./pages/PickTabPage";
 import LeaderboardTabPage from "./pages/LeaderboardTabPage";
@@ -47,6 +48,7 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<HomeRedirect />} />
                 <Route path="/join" element={<JoinPage />} />
+                <Route path="/login" element={<LoginPage />} />
                 <Route path="/create" element={<CreateLeaguePage />} />
                 <Route path="/league/:leagueId/pick" element={<PickTabPage />} />
                 <Route path="/league/:leagueId/leaderboard" element={<LeaderboardTabPage />} />

@@ -5,6 +5,7 @@ import {
   Title,
   Text,
   TextInput,
+  PasswordInput,
   Button,
   Stack,
   Alert,
@@ -13,10 +14,10 @@ import {
 import { IconFlag3, IconAlertTriangle } from "@tabler/icons-react";
 import { api, setSession } from "../api/client";
 
-export default function JoinPage() {
+export default function LoginPage() {
   const [joinCode, setJoinCode] = useState("");
-  const [displayName, setDisplayName] = useState("");
   const [teamName, setTeamName] = useState("");
+  const [passcode, setPasscode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -26,11 +27,11 @@ export default function JoinPage() {
     setError(null);
     setLoading(true);
     try {
-      const result = await api.joinLeague(joinCode.trim(), displayName.trim(), teamName.trim());
+      const result = await api.loginToTeam(joinCode.trim(), teamName.trim(), passcode);
       setSession(result.sessionToken, result.memberId, result.leagueId, result.isOwner, undefined, teamName.trim());
       navigate(`/league/${result.leagueId}/pick`);
     } catch (err: any) {
-      setError(err.message || "Couldn't join. Check the code and try again.");
+      setError(err.message || "Couldn't log in. Check your details and try again.");
     } finally {
       setLoading(false);
     }
@@ -41,10 +42,10 @@ export default function JoinPage() {
       <Stack gap={4} mb="lg" align="center">
         <IconFlag3 size={32} color="var(--mantine-color-tangerine-4)" />
         <Title order={2} c="forest.8" ta="center">
-          Join Your League
+          Log In to Your Team
         </Title>
         <Text c="forest.1" size="sm" ta="center">
-          Enter the code your league owner shared with you
+          Already have a team? Log back in from any device with your passcode.
         </Text>
       </Stack>
 
@@ -60,17 +61,17 @@ export default function JoinPage() {
             required
           />
           <TextInput
-            label="Your Name"
-            placeholder="Jam"
-            value={displayName}
-            onChange={(e) => setDisplayName(e.currentTarget.value)}
-            required
-          />
-          <TextInput
             label="Team Name"
             placeholder="Birdie Believers"
             value={teamName}
             onChange={(e) => setTeamName(e.currentTarget.value)}
+            required
+          />
+          <PasswordInput
+            label="Passcode"
+            placeholder="Your team's passcode"
+            value={passcode}
+            onChange={(e) => setPasscode(e.currentTarget.value)}
             required
           />
 
@@ -81,20 +82,17 @@ export default function JoinPage() {
           )}
 
           <Button type="submit" loading={loading} color="mint" size="md" fullWidth>
-            Join League
+            Log In
           </Button>
 
           <Text size="sm" ta="center" c="forest.2">
-            Starting a new league?{" "}
-            <Anchor component={Link} to="/create" c="tangerine.4">
-              Create one
+            New here?{" "}
+            <Anchor component={Link} to="/join" c="tangerine.4">
+              Join a league
             </Anchor>
           </Text>
           <Text size="sm" ta="center" c="forest.2">
-            Already have a team on another device?{" "}
-            <Anchor component={Link} to="/login" c="tangerine.4">
-              Log in
-            </Anchor>
+            Note: logging in on a new device will sign this team out of any other device it was logged into.
           </Text>
         </Stack>
       </form>

@@ -3,6 +3,7 @@ import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { Group, Text, ActionIcon, Tooltip } from "@mantine/core";
 import { IconArrowLeft, IconSettings } from "@tabler/icons-react";
 import { getStoredLeagueId, isStoredOwner, api } from "../api/client";
+import { PasscodeButton } from "./PasscodeButton";
 
 export function TopBar() {
   const navigate = useNavigate();
@@ -79,6 +80,8 @@ export function TopBar() {
           <IconArrowLeft size={18} />
         </ActionIcon>
       )}
+
+      {isMainTabScreen && <PasscodeButton />}
 
       {showSettings && (
         <Tooltip label="League admin" withArrow>
