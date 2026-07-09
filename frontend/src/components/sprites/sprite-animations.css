@@ -1,0 +1,78 @@
+/* Pixel sprite animations - Kairosoft-style idle bob and run-on entrance. */
+
+@keyframes pixel-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.pixel-sprite-bob {
+  animation: pixel-bob 0.6s steps(2, end) infinite;
+}
+
+/* Slight per-instance desync so a row of sprites doesn't bob in unison
+   like a single object. */
+.pixel-sprite-bob.bob-offset-1 {
+  animation-delay: 0.15s;
+}
+.pixel-sprite-bob.bob-offset-2 {
+  animation-delay: 0.3s;
+}
+.pixel-sprite-bob.bob-offset-3 {
+  animation-delay: 0.45s;
+}
+
+/* Run-on-screen entrance: sprite slides in from a horizontal offset
+   and settles at its final position. --run-distance is set inline per
+   instance since each sprite starts from a different list position
+   and needs a different travel distance to look like it's genuinely
+   running into place rather than just fading in. */
+@keyframes pixel-run-on {
+  0% {
+    transform: translateX(var(--run-distance, 120px));
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.pixel-sprite-run-on {
+  animation: pixel-run-on 0.45s cubic-bezier(0.2, 0.8, 0.4, 1) both;
+}
+
+/* Tiny running-leg flicker during the run-on animation, layered on top
+   of the slide - simple left/right tilt to suggest leg movement
+   without a full sprite-sheet walk cycle. */
+@keyframes pixel-run-wobble {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-4deg);
+  }
+  75% {
+    transform: rotate(4deg);
+  }
+}
+
+.pixel-sprite-run-on .pixel-sprite-bob {
+  animation: pixel-run-wobble 0.12s linear infinite, pixel-bob 0.6s steps(2, end) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pixel-sprite-bob,
+  .pixel-sprite-run-on,
+  .pixel-sprite-run-on .pixel-sprite-bob {
+    animation: none !important;
+  }
+}

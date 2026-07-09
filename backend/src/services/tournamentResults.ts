@@ -1,0 +1,109 @@
+/**
+ * Tournament Results Service
+ * ---------------------------
+ * Called when a tournament's status transitions to 'completed'.
+ * Snapshots each member's final score from `tournament_standings` into
+ * the permanent `tournament_results` ledger, which is what
+ * `career_standings` aggregates across a team's whole history in the
+ * league. This is what makes wins/career totals survive even though
+ * `picks` and `player_round_scores` stay tournament-scoped.
+ *
+ * Idempotent: re-running for an already-finalized tournament replaces
+ * its rows rather than duplicating them, so accidentally toggling a
+ * tournament's status back and forth doesn't double-count results.
+ */
+
+import { query, withTransaction } from "../db/client";
+
+export class ResultsError extends Error {}
+
+export async function finalizeTournamentResults(tournamentId: string) {
+  const standings = await query<{
+    member_id: string;
+    team_name: string;
+    total_to_par: number;
+  }>(
+    `select member_id, team_name, total_to_par
+       from tournament_standings
+      where tournament_id = $1
+      order by total_to_par asc`,
+    [tournamentId]
+  );
+
+  if (standings.rows.length === 0) {
+    throw new ResultsError(
+      "No standings found for this tournament - make sure picks were made and scores recorded before completing it."
+    );
+  }
+
+  const tournament = await query<{ league_id: string }>(
+    `select league_id from tournaments where id = $1`,
+    [tournamentId]
+  );
+  const leagueId = tournament.rows[0]?.league_id;
+  if (!leagueId) throw new ResultsError("Tournament not found.");
+
+  const bestScore = standings.rows[0].total_to_par;
+
+  await withTransaction(async (client) => {
+    // Clear any prior finalization for this tournament so re-running is safe.
+    await client.query(`delete from tournament_results where tournament_id = $1`, [tournamentId]);
+
+    // Standard competition ranking: tied scores share the same
+    // placement (e.g. two teams tied for best score are both placement
+    // 1), and the next distinct score jumps to the row count so far
+    // + 1 (e.g. 1, 1, 3 - not 1, 1, 2). Without this, a tie for 1st
+    // would have one team correctly marked is_win=true but recorded
+    // with placement=2, putting them in "2nd place" on the podium
+    // standings despite having won - placement and is_win need to
+    // agree with each other.
+    let previousScore: number | null = null;
+    let previousPlacement = 0;
+    let rowsSeen = 0;
+
+    for (const row of standings.rows) {
+      rowsSeen++;
+      const placement =
+        previousScore !== null && row.total_to_par === previousScore
+          ? previousPlacement
+          : rowsSeen;
+      previousScore = row.total_to_par;
+      previousPlacement = placement;
+
+      const isWin = row.total_to_par === bestScore;
+      await client.query(
+        `insert into tournament_results
+           (tournament_id, league_id, member_id, team_name, total_to_par, placement, is_win)
+         values ($1, $2, $3, $4, $5, $6, $7)`,
+        [tournamentId, leagueId, row.member_id, row.team_name, row.total_to_par, placement, isWin]
+      );
+    }
+  });
+
+  return { finalized: standings.rows.length };
+}
+
+/**
+ * Lets the league owner override which team(s) are credited with the
+ * win for an already-finalized tournament (e.g. correcting a manual
+ * scoring dispute or a tie-break decision). Setting isWin=true on one
+ * team does NOT automatically unset others - ties are allowed to both
+ * be wins unless the owner explicitly unsets one.
+ */
+export async function overrideTournamentWin(
+  tournamentId: string,
+  memberId: string,
+  isWin: boolean
+) {
+  const result = await query(
+    `update tournament_results
+        set is_win = $1, win_overridden_by_owner = true
+      where tournament_id = $2 and member_id = $3
+      returning *`,
+    [isWin, tournamentId, memberId]
+  );
+  if (result.rows.length === 0) {
+    throw new ResultsError("No result found for this member in this tournament.");
+  }
+  return result.rows[0];
+}

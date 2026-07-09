@@ -1,0 +1,365 @@
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
+
+function getToken(): string | null {
+  return localStorage.getItem("liv_fantasy_session_token");
+}
+
+export function setSession(
+  token: string,
+  memberId: string,
+  leagueId: string,
+  isOwner: boolean,
+  joinCode?: string,
+  teamName?: string
+) {
+  localStorage.setItem("liv_fantasy_session_token", token);
+  localStorage.setItem("liv_fantasy_member_id", memberId);
+  localStorage.setItem("liv_fantasy_league_id", leagueId);
+  localStorage.setItem("liv_fantasy_is_owner", isOwner ? "1" : "0");
+  if (joinCode) {
+    localStorage.setItem("liv_fantasy_join_code", joinCode);
+  }
+  if (teamName) {
+    localStorage.setItem("liv_fantasy_team_name", teamName);
+  }
+}
+
+export function getStoredTeamName(): string | null {
+  return localStorage.getItem("liv_fantasy_team_name");
+}
+
+export function clearSession() {
+  localStorage.removeItem("liv_fantasy_session_token");
+  localStorage.removeItem("liv_fantasy_member_id");
+  localStorage.removeItem("liv_fantasy_league_id");
+  localStorage.removeItem("liv_fantasy_is_owner");
+  localStorage.removeItem("liv_fantasy_join_code");
+  localStorage.removeItem("liv_fantasy_team_name");
+}
+
+export function getStoredLeagueId(): string | null {
+  return localStorage.getItem("liv_fantasy_league_id");
+}
+
+export function isStoredOwner(): boolean {
+  return localStorage.getItem("liv_fantasy_is_owner") === "1";
+}
+
+export function getStoredJoinCode(): string | null {
+  return localStorage.getItem("liv_fantasy_join_code");
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const token = getToken();
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(options.headers || {}),
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || `Request failed: ${res.status}`);
+  }
+  return res.json();
+}
+
+export interface CurrentTournament {
+  id: string;
+  name: string;
+  status: string;
+  espn_event_id: string | null;
+  rounds: Array<{
+    id: string;
+    round_number: number;
+    status: string;
+    locks_at: string | null;
+  }>;
+}
+
+export interface AuthResult {
+  memberId: string;
+  leagueId: string;
+  leagueName: string;
+  sessionToken: string;
+  isOwner: boolean;
+  joinCode?: string;
+}
+
+export interface PlayerOption {
+  id: string;
+  full_name: string;
+  pro_team_name: string | null;
+  country_code: string | null;
+  is_active: boolean;
+  already_used: boolean;
+}
+
+export interface PoolPlayer {
+  id: string;
+  full_name: string;
+  pro_team_name: string | null;
+  country_code: string | null;
+  is_active: boolean;
+}
+
+export interface LeaderboardRoundPick {
+  playerName: string;
+  proTeamName: string | null;
+  countryCode: string | null;
+  scoreToPar: number;
+  hasDoublePlay: boolean;
+  status: string;
+}
+
+export interface LeaderboardRound {
+  roundNumber: number;
+  total: number | null;
+  fullyScored: boolean;
+  picks: LeaderboardRoundPick[];
+}
+
+export interface LeaderboardTeam {
+  memberId: string;
+  teamName: string;
+  displayName: string;
+  rounds: LeaderboardRound[];
+  overallTotal: number;
+}
+
+export interface LeaderboardResponse {
+  tournament: { id: string; totalRounds: number } | null;
+  teams: LeaderboardTeam[];
+}
+
+export interface PodiumStanding {
+  member_id: string;
+  current_team_name: string;
+  display_name: string;
+  firsts: number;
+  seconds: number;
+  thirds: number;
+  tournaments_played: number;
+  career_total_to_par: number;
+}
+
+export interface NeedsSwapPick {
+  pick_id: string;
+  tournament_player_id: string;
+  full_name: string;
+}
+
+export interface MyPick {
+  tournament_player_id: string;
+  has_double_play: boolean;
+}
+
+export interface MyPickWithScore {
+  tournament_player_id: string;
+  player_name: string;
+  score_to_par: number;
+  effective_score_to_par: number;
+  has_double_play: boolean;
+  player_status: string;
+}
+
+export type DoublePlayStatus =
+  | { used: false }
+  | {
+      used: true;
+      round_number: number;
+      full_name: string;
+      round_id: string;
+      tournament_player_id: string;
+    };
+
+export interface CareerStanding {
+  member_id: string;
+  current_team_name: string;
+  display_name: string;
+  career_wins: number;
+  tournaments_played: number;
+  career_total_to_par: number;
+  best_tournament_to_par: number | null;
+}
+
+export interface TournamentResult {
+  id: string;
+  tournament_id: string;
+  member_id: string;
+  team_name: string;
+  total_to_par: number;
+  placement: number;
+  is_win: boolean;
+  win_overridden_by_owner: boolean;
+}
+
+export interface RoundInfo {
+  id: string;
+  tournament_id: string;
+  round_number: number;
+  status: string;
+  locks_at: string | null;
+  tournament_name: string;
+  total_rounds: number;
+}
+
+export const api = {
+  getRound: (roundId: string) => request<RoundInfo>(`/rounds/${roundId}`),
+
+  createLeague: (name: string, ownerDisplayName: string, ownerTeamName: string) =>
+    request<AuthResult>("/leagues", {
+      method: "POST",
+      body: JSON.stringify({ name, ownerDisplayName, ownerTeamName }),
+    }),
+
+  joinLeague: (joinCode: string, displayName: string, teamName: string) =>
+    request<AuthResult>("/leagues/join", {
+      method: "POST",
+      body: JSON.stringify({ joinCode, displayName, teamName }),
+    }),
+
+  getCurrentTournament: (leagueId: string) =>
+    request<CurrentTournament | null>(`/leagues/${leagueId}/current-tournament`),
+
+  getStandings: (leagueId: string) =>
+    request<
+      Array<{
+        member_id: string;
+        team_name: string;
+        display_name: string;
+        total_to_par: number;
+        used_double_play: boolean;
+      }>
+    >(`/leagues/${leagueId}/standings`),
+
+  getTournament: (tournamentId: string) => request<any>(`/tournaments/${tournamentId}`),
+
+  getAvailablePlayers: (roundId: string) =>
+    request<PlayerOption[]>(`/rounds/${roundId}/available-players`),
+
+  getMyPicks: (roundId: string) => request<MyPick[]>(`/rounds/${roundId}/my-picks`),
+
+  getMyPicksWithScores: (roundId: string) =>
+    request<MyPickWithScore[]>(`/rounds/${roundId}/my-picks-with-scores`),
+
+  getDoublePlayStatus: (roundId: string) =>
+    request<DoublePlayStatus>(`/rounds/${roundId}/double-play-status`),
+
+  submitPicks: (
+    roundId: string,
+    tournamentPlayerIds: string[],
+    doublePlayTournamentPlayerId?: string | null
+  ) =>
+    request<{ success: true }>(`/rounds/${roundId}/picks`, {
+      method: "POST",
+      body: JSON.stringify({ tournamentPlayerIds, doublePlayTournamentPlayerId }),
+    }),
+
+  swapPick: (roundId: string, outgoingTournamentPlayerId: string, incomingTournamentPlayerId: string) =>
+    request<{ success: true }>(`/rounds/${roundId}/swap`, {
+      method: "POST",
+      body: JSON.stringify({ outgoingTournamentPlayerId, incomingTournamentPlayerId }),
+    }),
+
+  getNeedsSwap: (roundId: string) =>
+    request<NeedsSwapPick[]>(`/rounds/${roundId}/needs-swap`),
+
+  // --- Admin (owner-only) ---
+
+  createTournament: (input: {
+    name: string;
+    parTotal?: number;
+    totalRounds?: number;
+    espnEventId?: string;
+    startsAt?: string;
+  }) =>
+    request<any>("/admin/tournaments", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+
+  setEspnEventId: (tournamentId: string, espnEventId: string | null) =>
+    request<{ success: true }>(`/admin/tournaments/${tournamentId}/espn-event-id`, {
+      method: "PATCH",
+      body: JSON.stringify({ espnEventId }),
+    }),
+
+  setTournamentStatus: (tournamentId: string, status: "upcoming" | "live" | "completed") =>
+    request<{ success: true }>(`/admin/tournaments/${tournamentId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }),
+
+  addPlayer: (tournamentId: string, fullName: string, proTeamName?: string) =>
+    request<PoolPlayer>(`/admin/tournaments/${tournamentId}/players`, {
+      method: "POST",
+      body: JSON.stringify({ fullName, proTeamName }),
+    }),
+
+  addPlayersBulk: (tournamentId: string, players: Array<{ fullName: string; proTeamName?: string; countryCode?: string }>) =>
+    request<PoolPlayer[]>(`/admin/tournaments/${tournamentId}/players/bulk`, {
+      method: "POST",
+      body: JSON.stringify({ players }),
+    }),
+
+  seedDefaultRoster: (tournamentId: string) =>
+    request<{ added: number; skipped: number }>(
+      `/admin/tournaments/${tournamentId}/players/seed-default`,
+      { method: "POST" }
+    ),
+
+  clearAllPlayers: (tournamentId: string) =>
+    request<{ deleted: number }>(`/admin/tournaments/${tournamentId}/players`, {
+      method: "DELETE",
+    }),
+
+  simulateRound: (tournamentId: string, roundNumber: number) =>
+    request<{ applied: number; skipped: number; total: number }>(
+      `/admin/tournaments/${tournamentId}/simulate-round/${roundNumber}`,
+      { method: "POST" }
+    ),
+
+  simulateAllRounds: (tournamentId: string) =>
+    request<{ rounds: Record<number, { applied: number; skipped: number; total: number }> }>(
+      `/admin/tournaments/${tournamentId}/simulate-all-rounds`,
+      { method: "POST" }
+    ),
+
+  getPlayerPool: (tournamentId: string) =>
+    request<PoolPlayer[]>(`/admin/tournaments/${tournamentId}/players`),
+
+  withdrawPlayer: (playerId: string) =>
+    request<{ success: true }>(`/admin/players/${playerId}/withdraw`, {
+      method: "PATCH",
+    }),
+
+  setRoundLock: (roundId: string, locksAt: string | null) =>
+    request<{ success: true }>(`/admin/rounds/${roundId}/lock`, {
+      method: "PATCH",
+      body: JSON.stringify({ locksAt }),
+    }),
+
+  getTournamentResults: (tournamentId: string) =>
+    request<TournamentResult[]>(`/admin/tournaments/${tournamentId}/results`),
+
+  overrideWin: (tournamentId: string, memberId: string, isWin: boolean) =>
+    request<TournamentResult>(`/admin/tournaments/${tournamentId}/results/${memberId}/win`, {
+      method: "PATCH",
+      body: JSON.stringify({ isWin }),
+    }),
+
+  getLeaderboard: (leagueId: string) =>
+    request<LeaderboardResponse>(`/leagues/${leagueId}/leaderboard`),
+
+  getPodiumStandings: (leagueId: string) =>
+    request<PodiumStanding[]>(`/leagues/${leagueId}/podium-standings`),
+
+  // --- Career / all-time (any member can view) ---
+
+  getCareerStandings: (leagueId: string) =>
+    request<CareerStanding[]>(`/leagues/${leagueId}/career-standings`),
+};

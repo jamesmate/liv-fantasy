@@ -1,0 +1,470 @@
+import { Router } from "express";
+import { query, withTransaction } from "../db/client";
+import { requireMember, requireOwner } from "../middleware/auth";
+import { finalizeTournamentResults, overrideTournamentWin, ResultsError } from "../services/tournamentResults";
+import DEFAULT_ROSTER from "../data/andalucia-roster.json";
+import ANDALUCIA_ROUND_1_SCORES from "../data/andalucia-round1-scores.json";
+import ANDALUCIA_ROUND_2_SCORES from "../data/andalucia-round2-scores.json";
+import ANDALUCIA_ROUND_3_SCORES from "../data/andalucia-round3-scores.json";
+import ANDALUCIA_ROUND_4_SCORES from "../data/andalucia-round4-scores.json";
+
+export const adminRouter = Router();
+
+adminRouter.use(requireMember, requireOwner);
+
+// POST /admin/tournaments  { name, parTotal, totalRounds, espnEventId, startsAt }
+// Creates a tournament for the owner's league and pre-creates its
+// rounds (default 4, matching LIV's 2026 format) in one transaction.
+adminRouter.post("/tournaments", async (req, res) => {
+  const { name, parTotal, totalRounds, espnEventId, startsAt } = req.body;
+  if (!name) return res.status(400).json({ error: "name is required." });
+
+  const rounds = Number(totalRounds) > 0 ? Number(totalRounds) : 4;
+  const par = Number(parTotal) > 0 ? Number(parTotal) : 72;
+
+  try {
+    const tournament = await withTransaction(async (client) => {
+      const t = await client.query(
+        `insert into tournaments (league_id, name, espn_event_id, par, total_rounds, status, starts_at)
+         values ($1, $2, $3, $4, $5, 'upcoming', $6)
+         returning *`,
+        [req.member!.leagueId, name, espnEventId ?? null, par, rounds, startsAt ?? null]
+      );
+      const tournamentId = t.rows[0].id;
+
+      for (let i = 1; i <= rounds; i++) {
+        await client.query(
+          `insert into rounds (tournament_id, round_number, status) values ($1, $2, 'upcoming')`,
+          [tournamentId, i]
+        );
+      }
+      return t.rows[0];
+    });
+
+    res.status(201).json(tournament);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to create tournament." });
+  }
+});
+
+// PATCH /admin/tournaments/:id/status  { status: 'upcoming' | 'live' | 'completed' }
+// Flips a tournament live/completed - the score sync loop only polls
+// tournaments with status = 'live', so this is how syncing turns on.
+// Flipping to 'completed' also finalizes results into the permanent
+// tournament_results ledger (see services/tournamentResults.ts), which
+// is what makes wins and career totals persist across tournaments.
+adminRouter.patch("/tournaments/:id/status", async (req, res) => {
+  const { status } = req.body;
+  if (!["upcoming", "live", "completed"].includes(status)) {
+    return res.status(400).json({ error: "status must be upcoming, live, or completed." });
+  }
+
+  const tournament = await query(
+    `select id from tournaments where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (tournament.rows.length === 0) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+
+  await query(`update tournaments set status = $1 where id = $2`, [status, req.params.id]);
+
+  if (status === "completed") {
+    try {
+      const result = await finalizeTournamentResults(req.params.id);
+      return res.json({ success: true, ...result });
+    } catch (err) {
+      if (err instanceof ResultsError) {
+        // Status change still happened, but flag that results couldn't
+        // be finalized (e.g. nobody made any picks) so the owner knows
+        // career stats won't reflect this tournament.
+        return res.status(200).json({ success: true, finalizationWarning: err.message });
+      }
+      console.error(err);
+      return res.status(500).json({ error: "Status updated but finalization failed." });
+    }
+  }
+
+  res.json({ success: true });
+});
+
+// PATCH /admin/tournaments/:id/results/:memberId/win  { isWin: boolean }
+// Owner override for a specific team's win credit on an already
+// finalized (completed) tournament - e.g. correcting a tie-break.
+adminRouter.patch("/tournaments/:id/results/:memberId/win", async (req, res) => {
+  const { isWin } = req.body;
+  if (typeof isWin !== "boolean") {
+    return res.status(400).json({ error: "isWin must be a boolean." });
+  }
+  try {
+    const result = await overrideTournamentWin(req.params.id, req.params.memberId, isWin);
+    res.json(result);
+  } catch (err) {
+    if (err instanceof ResultsError) {
+      return res.status(400).json({ error: err.message });
+    }
+    console.error(err);
+    res.status(500).json({ error: "Failed to override win." });
+  }
+});
+
+// GET /admin/tournaments/:id/results - finalized per-team results for
+// a completed tournament, used by the admin override UI.
+adminRouter.get("/tournaments/:id/results", async (req, res) => {
+  const result = await query(
+    `select tr.* from tournament_results tr
+       join tournaments t on t.id = tr.tournament_id
+      where tr.tournament_id = $1 and t.league_id = $2
+      order by tr.placement asc`,
+    [req.params.id, req.member!.leagueId]
+  );
+  res.json(result.rows);
+});
+
+// PATCH /admin/rounds/:roundId/lock  { locksAt: ISO string | null }
+// Sets (or clears, if locksAt is null) the time after which picks for
+// this round can no longer be submitted or swapped. submitPicks() and
+// swapPick() in services/picks.ts already enforce this - this endpoint
+// is just how the owner sets it (e.g. to the round's tee time).
+adminRouter.patch("/rounds/:roundId/lock", async (req, res) => {
+  const { locksAt } = req.body;
+
+  const round = await query(
+    `select r.id from rounds r
+       join tournaments t on t.id = r.tournament_id
+      where r.id = $1 and t.league_id = $2`,
+    [req.params.roundId, req.member!.leagueId]
+  );
+  if (round.rows.length === 0) {
+    return res.status(404).json({ error: "Round not found." });
+  }
+
+  await query(`update rounds set locks_at = $1 where id = $2`, [
+    locksAt ?? null,
+    req.params.roundId,
+  ]);
+  res.json({ success: true });
+});
+
+// PATCH /admin/tournaments/:id/espn-event-id  { espnEventId: string | null }
+// Lets the owner set or correct the ESPN event id after a tournament
+// has already been created (e.g. they didn't have it on hand yet, or
+// ESPN's id needs correcting). syncTournamentScores() requires this to
+// be set before live scores can sync.
+adminRouter.patch("/tournaments/:id/espn-event-id", async (req, res) => {
+  const { espnEventId } = req.body;
+  const tournament = await query(
+    `select id from tournaments where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (tournament.rows.length === 0) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+  await query(`update tournaments set espn_event_id = $1 where id = $2`, [
+    espnEventId || null,
+    req.params.id,
+  ]);
+  res.json({ success: true });
+});
+
+// POST /admin/tournaments/:id/players  { fullName, proTeamName?, espnPlayerId?, countryCode? }
+// Manually adds a player to a tournament's pool. Used both for the
+// initial bulk population and for one-off additions (e.g. a late
+// wild-card replacement) that the ESPN scrape might miss.
+adminRouter.post("/tournaments/:id/players", async (req, res) => {
+  const { fullName, proTeamName, espnPlayerId, countryCode } = req.body;
+  if (!fullName) return res.status(400).json({ error: "fullName is required." });
+
+  const tournament = await query(
+    `select id from tournaments where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (tournament.rows.length === 0) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+
+  const result = await query(
+    `insert into tournament_players (tournament_id, espn_player_id, full_name, pro_team_name, country_code)
+     values ($1, $2, $3, $4, $5)
+     returning *`,
+    [req.params.id, espnPlayerId ?? null, fullName, proTeamName ?? null, countryCode ?? null]
+  );
+  res.status(201).json(result.rows[0]);
+});
+
+// POST /admin/tournaments/:id/players/bulk  { players: [{ fullName, proTeamName?, countryCode? }] }
+// Convenience endpoint for populating a whole field at once (e.g.
+// pasting in the 54-player LIV field at the start of an event).
+adminRouter.post("/tournaments/:id/players/bulk", async (req, res) => {
+  const { players } = req.body;
+  if (!Array.isArray(players) || players.length === 0) {
+    return res.status(400).json({ error: "players must be a non-empty array." });
+  }
+
+  const tournament = await query(
+    `select id from tournaments where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (tournament.rows.length === 0) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+
+  const inserted = await withTransaction(async (client) => {
+    const rows = [];
+    for (const p of players) {
+      if (!p.fullName) continue;
+      const r = await client.query(
+        `insert into tournament_players (tournament_id, espn_player_id, full_name, pro_team_name, country_code)
+         values ($1, $2, $3, $4, $5)
+         returning *`,
+        [req.params.id, p.espnPlayerId ?? null, p.fullName, p.proTeamName ?? null, p.countryCode ?? null]
+      );
+      rows.push(r.rows[0]);
+    }
+    return rows;
+  });
+
+  res.status(201).json(inserted);
+});
+
+// POST /admin/tournaments/:id/players/seed-default
+// Populates the tournament's player pool from the bundled LIV Golf
+// Andalucia 2026 roster (57 real players with ESPN ids and country
+// codes) - a convenient starting point that's still fully editable
+// afterward via the regular add/withdraw endpoints. Skips any player
+// whose espn_player_id already exists in this tournament, so calling
+// this more than once (e.g. after also adding a few manually) doesn't
+// create duplicates.
+adminRouter.post("/tournaments/:id/players/seed-default", async (req, res) => {
+  const tournament = await query(
+    `select id from tournaments where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (tournament.rows.length === 0) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+
+  const inserted = await withTransaction(async (client) => {
+    const rows = [];
+    for (const p of DEFAULT_ROSTER) {
+      const existing = await client.query(
+        `select 1 from tournament_players where tournament_id = $1 and espn_player_id = $2`,
+        [req.params.id, p.espnPlayerId]
+      );
+      if (existing.rows.length > 0) continue;
+
+      const r = await client.query(
+        `insert into tournament_players (tournament_id, espn_player_id, full_name, country_code, pro_team_name)
+         values ($1, $2, $3, $4, $5)
+         returning *`,
+        [req.params.id, p.espnPlayerId, p.fullName, p.countryCode, p.proTeamName ?? null]
+      );
+      rows.push(r.rows[0]);
+    }
+    return rows;
+  });
+
+  res.status(201).json({ added: inserted.length, skipped: DEFAULT_ROSTER.length - inserted.length });
+});
+
+interface SimulatedRoundScore {
+  espnPlayerId: string;
+  scoreToPar: number | null;
+  status: string;
+}
+
+// Real LIV Golf Andalucia 2026 results, one file per round, all
+// matched by espn_player_id. Used by both the single-round and
+// all-rounds simulate endpoints below.
+const ANDALUCIA_ROUND_SCORES: Record<number, SimulatedRoundScore[]> = {
+  1: ANDALUCIA_ROUND_1_SCORES,
+  2: ANDALUCIA_ROUND_2_SCORES,
+  3: ANDALUCIA_ROUND_3_SCORES,
+  4: ANDALUCIA_ROUND_4_SCORES,
+};
+
+/**
+ * Writes one round's worth of real Andalucia scores into
+ * player_round_scores for the given tournament/round, matching players
+ * by espn_player_id. Shared by the single-round and all-rounds
+ * simulate endpoints. Returns counts rather than throwing on a partial
+ * match, since "some players in this tournament weren't in the seeded
+ * roster" is an expected, non-fatal case (e.g. the owner added extra
+ * manual players who have no espn_player_id to match against).
+ */
+async function applySimulatedRoundScores(
+  tournamentId: string,
+  roundId: string,
+  roundNumber: number
+) {
+  const scores = ANDALUCIA_ROUND_SCORES[roundNumber];
+  if (!scores) {
+    return { applied: 0, skipped: 0, total: 0 };
+  }
+
+  let applied = 0;
+  let skipped = 0;
+  const withdrawnPlayerIds: string[] = [];
+
+  await withTransaction(async (client) => {
+    for (const scoreRow of scores) {
+      const tp = await client.query<{ id: string }>(
+        `select id from tournament_players where tournament_id = $1 and espn_player_id = $2`,
+        [tournamentId, scoreRow.espnPlayerId]
+      );
+      if (tp.rows.length === 0) {
+        skipped++;
+        continue;
+      }
+      const tournamentPlayerId = tp.rows[0].id;
+
+      await client.query(
+        `insert into player_round_scores
+           (tournament_player_id, round_id, score_to_par, thru, status, updated_at)
+         values ($1, $2, $3, $4, $5, now())
+         on conflict (tournament_player_id, round_id) do update
+           set score_to_par = excluded.score_to_par,
+               thru = excluded.thru,
+               status = excluded.status,
+               updated_at = now()`,
+        [
+          tournamentPlayerId,
+          roundId,
+          scoreRow.scoreToPar,
+          scoreRow.status === "completed" ? 18 : 0,
+          scoreRow.status,
+        ]
+      );
+
+      if (scoreRow.status === "withdrawn") {
+        withdrawnPlayerIds.push(tournamentPlayerId);
+      }
+      applied++;
+    }
+
+    for (const id of withdrawnPlayerIds) {
+      await client.query(`update tournament_players set is_active = false where id = $1`, [id]);
+    }
+  });
+
+  return { applied, skipped, total: scores.length };
+}
+
+// POST /admin/tournaments/:id/simulate-round/:roundNumber
+// Loads the REAL LIV Golf Andalucia 2026 results for one specific
+// round (1-4) into the matching round of this tournament - useful for
+// testing scoring/standings/Double Play math against known real-world
+// numbers without waiting for an actual live round. Only affects
+// players matched by ESPN ID (i.e. players added via "Load Andalucía
+// Roster") - silently skips any it can't match.
+adminRouter.post("/tournaments/:id/simulate-round/:roundNumber", async (req, res) => {
+  const roundNumber = Number(req.params.roundNumber);
+  if (!ANDALUCIA_ROUND_SCORES[roundNumber]) {
+    return res.status(400).json({ error: "roundNumber must be 1, 2, 3, or 4." });
+  }
+
+  const tournament = await query(
+    `select id from tournaments where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (tournament.rows.length === 0) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+
+  const round = await query<{ id: string }>(
+    `select id from rounds where tournament_id = $1 and round_number = $2`,
+    [req.params.id, roundNumber]
+  );
+  if (round.rows.length === 0) {
+    return res.status(400).json({ error: `This tournament has no round ${roundNumber}.` });
+  }
+
+  const result = await applySimulatedRoundScores(req.params.id, round.rows[0].id, roundNumber);
+  res.json(result);
+});
+
+// POST /admin/tournaments/:id/simulate-all-rounds
+// Loads all 4 rounds of real Andalucia results in one go, in round
+// order. Useful for quickly getting a tournament to a fully-scored
+// state to test completion/career-standings/podium logic, rather than
+// simulating one round at a time.
+adminRouter.post("/tournaments/:id/simulate-all-rounds", async (req, res) => {
+  const tournament = await query(
+    `select id from tournaments where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (tournament.rows.length === 0) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+
+  const rounds = await query<{ id: string; round_number: number }>(
+    `select id, round_number from rounds where tournament_id = $1 order by round_number asc`,
+    [req.params.id]
+  );
+
+  const results: Record<number, { applied: number; skipped: number; total: number }> = {};
+  for (const round of rounds.rows) {
+    if (!ANDALUCIA_ROUND_SCORES[round.round_number]) continue;
+    results[round.round_number] = await applySimulatedRoundScores(
+      req.params.id,
+      round.id,
+      round.round_number
+    );
+  }
+
+  res.json({ rounds: results });
+});
+
+// PATCH /admin/players/:playerId/withdraw
+// Manually marks a player withdrawn (in case the ESPN scrape doesn't
+// catch it promptly). Mirrors what scoreSync.ts does automatically
+// when ESPN reports a withdrawn status.
+adminRouter.patch("/players/:playerId/withdraw", async (req, res) => {
+  await query(
+    `update tournament_players tp
+        set is_active = false
+       from tournaments t
+      where tp.id = $1
+        and tp.tournament_id = t.id
+        and t.league_id = $2`,
+    [req.params.playerId, req.member!.leagueId]
+  );
+  res.json({ success: true });
+});
+
+// DELETE /admin/tournaments/:id/players
+// Removes every player from this tournament's pool - used to clean up
+// duplicates or a partial/incorrect seed before re-running it. Also
+// removes any picks referencing those players (cascades via the
+// tournament_player_id foreign key), so this should only be used
+// before real picks have been made for the tournament.
+adminRouter.delete("/tournaments/:id/players", async (req, res) => {
+  const tournament = await query(
+    `select id from tournaments where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (tournament.rows.length === 0) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+
+  const result = await query(
+    `delete from tournament_players where tournament_id = $1`,
+    [req.params.id]
+  );
+  res.json({ deleted: result.rowCount });
+});
+
+// GET /admin/tournaments/:id/players - full pool, including inactive,
+// for the admin's "manage players" screen (unlike the picks-facing
+// /rounds/.../available-players endpoint, this isn't filtered per member).
+adminRouter.get("/tournaments/:id/players", async (req, res) => {
+  const result = await query(
+    `select tp.* from tournament_players tp
+       join tournaments t on t.id = tp.tournament_id
+      where tp.tournament_id = $1 and t.league_id = $2
+      order by tp.full_name asc`,
+    [req.params.id, req.member!.leagueId]
+  );
+  res.json(result.rows);
+});
