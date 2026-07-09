@@ -60,6 +60,24 @@ export default function AdminPage() {
 
   const [editingEspnId, setEditingEspnId] = useState("");
   const [savingEspnId, setSavingEspnId] = useState(false);
+  const [populatingFromEspn, setPopulatingFromEspn] = useState(false);
+  const [populateResult, setPopulateResult] = useState<{ eventName: string; fieldSize: number; added: number; skipped: number } | null>(null);
+
+  async function handlePopulateFromEspn() {
+    if (!tournament) return;
+    setPopulatingFromEspn(true);
+    setError(null);
+    setPopulateResult(null);
+    try {
+      const result = await api.populateFromEspn(tournament.id);
+      setPopulateResult(result);
+      await refresh();
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setPopulatingFromEspn(false);
+    }
+  }
 
   async function handleSaveEspnId() {
     if (!tournament) return;
@@ -401,6 +419,29 @@ export default function AdminPage() {
                   Save
                 </Button>
               </Group>
+
+              <Button
+                size="sm"
+                color="tangerine"
+                variant="light"
+                loading={populatingFromEspn}
+                disabled={!tournament.espn_event_id}
+                onClick={handlePopulateFromEspn}
+              >
+                Populate players from ESPN
+              </Button>
+              <Text size="xs" c="dimmed">
+                Pulls the current field for the saved ESPN event ID above and adds every player found. Safe to
+                press again later (e.g. a few days into the event) - already-added players are skipped, not
+                duplicated.
+              </Text>
+              {populateResult && (
+                <Alert color="mint" variant="light">
+                  "{populateResult.eventName}": {populateResult.fieldSize} players in the field, {populateResult.added} added
+                  {populateResult.skipped > 0 ? `, ${populateResult.skipped} already in the pool` : ""}.
+                </Alert>
+              )}
+
               {finalizationWarning && (
                 <Alert color="tangerine" variant="light" icon={<IconAlertTriangle size={16} />}>
                   {finalizationWarning}

@@ -324,6 +324,12 @@ export const api = {
       { method: "POST" }
     ),
 
+  populateFromEspn: (tournamentId: string) =>
+    request<{ eventName: string; fieldSize: number; added: number; skipped: number }>(
+      `/admin/tournaments/${tournamentId}/players/populate-from-espn`,
+      { method: "POST" }
+    ),
+
   clearAllPlayers: (tournamentId: string) =>
     request<{ deleted: number }>(`/admin/tournaments/${tournamentId}/players`, {
       method: "DELETE",

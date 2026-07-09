@@ -3,6 +3,7 @@ import { query, withTransaction } from "../db/client";
 import { requireMember, requireOwner } from "../middleware/auth";
 import { finalizeTournamentResults, overrideTournamentWin, ResultsError } from "../services/tournamentResults";
 import { syncTournamentScores } from "../services/scoreSync";
+import { getLeaderboard } from "../adapters/espnGolf";
 import DEFAULT_ROSTER from "../data/andalucia-roster.json";
 import ANDALUCIA_ROUND_1_SCORES from "../data/andalucia-round1-scores.json";
 import ANDALUCIA_ROUND_2_SCORES from "../data/andalucia-round2-scores.json";
@@ -290,6 +291,76 @@ adminRouter.post("/tournaments/:id/players/seed-default", async (req, res) => {
   });
 
   res.status(201).json({ added: inserted.length, skipped: DEFAULT_ROSTER.length - inserted.length });
+});
+
+// POST /admin/tournaments/:id/players/populate-from-espn
+// Pulls the CURRENT field directly from ESPN using this tournament's
+// stored espn_event_id and bulk-adds every player found - the
+// button-driven equivalent of running seed-tournament.ts by hand.
+// Safe to call more than once (e.g. re-run a few days into the event
+// to pick up any late entries) - skips any player whose espn_player_id
+// already exists in this tournament's pool, same dedupe as seed-default.
+adminRouter.post("/tournaments/:id/players/populate-from-espn", async (req, res) => {
+  const tournament = await query<{ id: string; espn_event_id: string | null }>(
+    `select id, espn_event_id from tournaments where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (tournament.rows.length === 0) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+  const espnEventId = tournament.rows[0].espn_event_id;
+  if (!espnEventId) {
+    return res.status(400).json({
+      error: "Set an ESPN event ID on this tournament first, then populate players.",
+    });
+  }
+
+  let board;
+  try {
+    board = await getLeaderboard(espnEventId);
+  } catch (err) {
+    console.error(err);
+    return res.status(502).json({
+      error: err instanceof Error ? `Couldn't fetch ESPN field: ${err.message}` : "Couldn't fetch ESPN field.",
+    });
+  }
+
+  // Collapse the one-row-per-round shape ESPN returns down to one row
+  // per player before inserting.
+  const byId = new Map<string, { espnPlayerId: string; fullName: string }>();
+  for (const p of board.players) {
+    if (!byId.has(p.espnPlayerId)) {
+      byId.set(p.espnPlayerId, { espnPlayerId: p.espnPlayerId, fullName: p.fullName });
+    }
+  }
+  const players = Array.from(byId.values());
+
+  const inserted = await withTransaction(async (client) => {
+    const rows = [];
+    for (const p of players) {
+      const existing = await client.query(
+        `select 1 from tournament_players where tournament_id = $1 and espn_player_id = $2`,
+        [req.params.id, p.espnPlayerId]
+      );
+      if (existing.rows.length > 0) continue;
+
+      const r = await client.query(
+        `insert into tournament_players (tournament_id, espn_player_id, full_name)
+         values ($1, $2, $3)
+         returning *`,
+        [req.params.id, p.espnPlayerId, p.fullName]
+      );
+      rows.push(r.rows[0]);
+    }
+    return rows;
+  });
+
+  res.status(201).json({
+    eventName: board.eventName,
+    fieldSize: players.length,
+    added: inserted.length,
+    skipped: players.length - inserted.length,
+  });
 });
 
 interface SimulatedRoundScore {
