@@ -1,6 +1,8 @@
 import { Router } from "express";
 import crypto from "crypto";
 import { query } from "../db/client";
+import { requireMember } from "../middleware/auth";
+import { hashPasscode, verifyPasscode } from "../utils/passcode";
 
 export const leagueRouter = Router();
 
@@ -96,6 +98,78 @@ leagueRouter.post("/join", async (req, res) => {
     leagueName: league.rows[0].name,
     sessionToken,
     isOwner: false,
+  });
+});
+
+// POST /leagues/passcode  { passcode }
+// Lets the currently logged-in member set/change the passcode for
+// THEIR OWN team, so they can log back into this exact team from any
+// device later via /leagues/login.
+leagueRouter.post("/passcode", requireMember, async (req, res) => {
+  const { passcode } = req.body;
+  if (!passcode || typeof passcode !== "string" || passcode.length < 4) {
+    return res.status(400).json({ error: "Passcode must be at least 4 characters." });
+  }
+
+  const passcodeHash = hashPasscode(passcode);
+  await query(`update members set passcode_hash = $1 where id = $2`, [passcodeHash, req.member!.id]);
+
+  res.json({ success: true });
+});
+
+// POST /leagues/login  { joinCode, teamName, passcode }
+// Logs back into an EXISTING team from any device, using the passcode
+// that team set via /leagues/passcode. Issues a fresh session token
+// and overwrites the stored one - the schema only tracks one active
+// token per member, so logging in on a new device (e.g. mobile) will
+// sign that team out on whichever device was previously logged in.
+// Simply log in again there with the same passcode if you need it back.
+leagueRouter.post("/login", async (req, res) => {
+  const { joinCode, teamName, passcode } = req.body;
+  if (!joinCode || !teamName || !passcode) {
+    return res.status(400).json({ error: "joinCode, teamName, and passcode are required." });
+  }
+
+  const league = await query<{ id: string; name: string }>(
+    `select id, name from leagues where join_code = $1`,
+    [joinCode.toUpperCase()]
+  );
+  if (league.rows.length === 0) {
+    return res.status(404).json({ error: "No league found with that join code." });
+  }
+  const leagueId = league.rows[0].id;
+
+  const member = await query<{
+    id: string;
+    is_owner: boolean;
+    passcode_hash: string | null;
+  }>(
+    `select id, is_owner, passcode_hash from members where league_id = $1 and team_name = $2`,
+    [leagueId, teamName]
+  );
+  if (member.rows.length === 0) {
+    return res.status(404).json({ error: "No team with that name in this league." });
+  }
+  const { id: memberId, is_owner: isOwner, passcode_hash: passcodeHash } = member.rows[0];
+
+  if (!passcodeHash) {
+    return res.status(400).json({
+      error: "This team hasn't set a passcode yet. Set one from the device you're already logged in on first.",
+    });
+  }
+  if (!verifyPasscode(passcode, passcodeHash)) {
+    return res.status(401).json({ error: "Incorrect passcode." });
+  }
+
+  const sessionToken = crypto.randomBytes(24).toString("hex");
+  await query(`update members set session_token = $1 where id = $2`, [sessionToken, memberId]);
+
+  res.json({
+    memberId,
+    leagueId,
+    leagueName: league.rows[0].name,
+    sessionToken,
+    isOwner,
   });
 });
 

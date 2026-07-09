@@ -31,6 +31,12 @@ create table if not exists members (
 -- predates this column (no-op if it already exists).
 alter table members add column if not exists is_owner boolean not null default false;
 
+-- Optional passcode a member sets themselves, letting them log back
+-- into this exact team from any device (join code + team name +
+-- passcode), instead of being stuck to whichever device holds the
+-- original session token. Null until the member sets one.
+alter table members add column if not exists passcode_hash text;
+
 -- A LIV Golf event, e.g. "LIV Golf Andalucia 2026".
 -- espn_event_id is the identifier used to query the ESPN adapter.
 create table if not exists tournaments (
