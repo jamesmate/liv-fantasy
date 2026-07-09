@@ -2,6 +2,7 @@ import { Router } from "express";
 import { query, withTransaction } from "../db/client";
 import { requireMember, requireOwner } from "../middleware/auth";
 import { finalizeTournamentResults, overrideTournamentWin, ResultsError } from "../services/tournamentResults";
+import { syncTournamentScores } from "../services/scoreSync";
 import DEFAULT_ROSTER from "../data/andalucia-roster.json";
 import ANDALUCIA_ROUND_1_SCORES from "../data/andalucia-round1-scores.json";
 import ANDALUCIA_ROUND_2_SCORES from "../data/andalucia-round2-scores.json";
@@ -89,7 +90,30 @@ adminRouter.patch("/tournaments/:id/status", async (req, res) => {
   res.json({ success: true });
 });
 
-// PATCH /admin/tournaments/:id/results/:memberId/win  { isWin: boolean }
+// POST /admin/tournaments/:id/sync-now
+// Manually triggers an immediate ESPN score sync for this tournament,
+// instead of waiting for the background interval. Useful because
+// Render's free tier sleeps after 15 minutes idle, which can silently
+// starve the interval-based sync loop in index.ts.
+adminRouter.post("/tournaments/:id/sync-now", async (req, res) => {
+  const tournament = await query<{ id: string; espn_event_id: string | null }>(
+    `select id, espn_event_id from tournaments where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (tournament.rows.length === 0) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+
+  try {
+    const board = await syncTournamentScores(tournament.rows[0].id, tournament.rows[0].espn_event_id);
+    res.json({ success: true, eventName: board.eventName, currentRound: board.currentRound, playerRounds: board.players.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Sync failed." });
+  }
+});
+
+
 // Owner override for a specific team's win credit on an already
 // finalized (completed) tournament - e.g. correcting a tie-break.
 adminRouter.patch("/tournaments/:id/results/:memberId/win", async (req, res) => {

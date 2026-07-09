@@ -57,3 +57,10 @@ async function runSyncForLiveTournaments() {
 }
 
 setInterval(runSyncForLiveTournaments, SYNC_INTERVAL_MS);
+// Also run once immediately on boot - setInterval alone waits a full
+// SYNC_INTERVAL_MS before its first tick, and Render's free tier sleeps
+// the process after 15 minutes idle, so without this an app that just
+// woke up (e.g. from someone loading the page) could sit showing stale
+// scores for up to 3 more minutes, or indefinitely if it goes back to
+// sleep before the interval ever fires.
+runSyncForLiveTournaments();
