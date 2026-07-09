@@ -222,6 +222,18 @@ export const api = {
       body: JSON.stringify({ joinCode, displayName, teamName }),
     }),
 
+  loginToTeam: (joinCode: string, teamName: string, passcode: string) =>
+    request<AuthResult>("/leagues/login", {
+      method: "POST",
+      body: JSON.stringify({ joinCode, teamName, passcode }),
+    }),
+
+  setPasscode: (passcode: string) =>
+    request<{ success: true }>("/leagues/passcode", {
+      method: "POST",
+      body: JSON.stringify({ passcode }),
+    }),
+
   getCurrentTournament: (leagueId: string) =>
     request<CurrentTournament | null>(`/leagues/${leagueId}/current-tournament`),
 
