@@ -37,6 +37,11 @@ alter table members add column if not exists is_owner boolean not null default f
 -- original session token. Null until the member sets one.
 alter table members add column if not exists passcode_hash text;
 
+-- Why a player was marked is_active = false - "withdrawn" or
+-- "missed_cut" - so the pick UI can show the right badge instead of
+-- always saying "Withdrawn" regardless of the actual reason.
+alter table tournament_players add column if not exists inactive_reason text;
+
 -- A LIV Golf event, e.g. "LIV Golf Andalucia 2026".
 -- espn_event_id is the identifier used to query the ESPN adapter.
 create table if not exists tournaments (

@@ -37,7 +37,7 @@ picksRouter.get("/:roundId/available-players", requireMember, async (req, res) =
   if (!tournamentId) return res.status(404).json({ error: "Round not found." });
 
   const players = await query(
-    `select tp.id, tp.full_name, tp.pro_team_name, tp.country_code, tp.is_active,
+    `select tp.id, tp.full_name, tp.pro_team_name, tp.country_code, tp.is_active, tp.inactive_reason,
             exists (
               select 1 from picks p
               join rounds r on r.id = p.round_id

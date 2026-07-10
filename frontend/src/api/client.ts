@@ -95,6 +95,7 @@ export interface PlayerOption {
   pro_team_name: string | null;
   country_code: string | null;
   is_active: boolean;
+  inactive_reason: string | null;
   already_used: boolean;
 }
 
@@ -104,6 +105,7 @@ export interface PoolPlayer {
   pro_team_name: string | null;
   country_code: string | null;
   is_active: boolean;
+  inactive_reason: string | null;
 }
 
 export interface LeaderboardRoundPick {
@@ -304,6 +306,11 @@ export const api = {
     request<{ success: true }>(`/admin/tournaments/${tournamentId}/status`, {
       method: "PATCH",
       body: JSON.stringify({ status }),
+    }),
+
+  deleteTournament: (tournamentId: string) =>
+    request<{ success: true }>(`/admin/tournaments/${tournamentId}`, {
+      method: "DELETE",
     }),
 
   addPlayer: (tournamentId: string, fullName: string, proTeamName?: string) =>

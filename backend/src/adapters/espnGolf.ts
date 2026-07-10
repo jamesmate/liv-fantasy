@@ -38,7 +38,10 @@
  *     - `status.type.description` - human-readable status, more
  *       reliable for withdrawal detection than `type.name`, which uses
  *       the confusingly-named "STATUS_CUT" for withdrawals (LIV has no
- *       cut, so this is just ESPN's status enum being reused loosely)
+ *       cut, so this is just ESPN's status enum being reused loosely).
+ *       On events that DO have a real cut (PGA/DP World co-sanctioned
+ *       events like the Scottish Open), `description` says "Cut" for
+ *       players who missed it - distinct from "Withdrawn".
  *     - `status.thru` - holes completed in the CURRENT/most recent round
  *   There is no team/pro-team field on the competitor or athlete
  *   objects - LIV pro team affiliation is not exposed here, which
@@ -54,7 +57,7 @@ export interface NormalizedPlayerRound {
   roundNumber: number;
   scoreToPar: number | null; // null = round not played (not started, or withdrew before this round)
   thru: number; // holes completed in the current/most recent round, 0-18
-  status: "not_started" | "in_progress" | "completed" | "withdrawn";
+  status: "not_started" | "in_progress" | "completed" | "withdrawn" | "missed_cut";
 }
 
 export interface NormalizedLeaderboard {
@@ -76,6 +79,7 @@ export interface NormalizedLeaderboard {
 function normalizeStatus(description: string | undefined): NormalizedPlayerRound["status"] {
   const s = (description || "").toLowerCase();
   if (s.includes("withdr") || s.includes("wd")) return "withdrawn";
+  if (s.includes("cut")) return "missed_cut";
   if (s.includes("finish") || s.includes("final") || s.includes("complete")) return "completed";
   if (s.includes("progress") || s.includes("active")) return "in_progress";
   return "not_started";
@@ -132,11 +136,12 @@ function normalizeEspnResponse(raw: any): NormalizedLeaderboard {
       const roundNumber = Number(ls.period);
       const scoreToPar = parseScoreToPar(ls.displayValue);
 
-      // A round reads as "withdrawn" only if it has no score AND the
-      // player's overall status is withdrawn (i.e. this is the round
-      // they didn't finish). Any round that DOES have a score was
-      // actually played, so it reads as "completed" even if the player
-      // withdrew in a later round - their earlier rounds still count.
+      // A round reads as "withdrawn"/"missed_cut" only if it has no
+      // score AND the player's overall status matches (i.e. this is
+      // the round they didn't play because of it). Any round that DOES
+      // have a score was actually played, so it reads as "completed"
+      // even if the player withdrew/missed the cut later - their
+      // earlier rounds still count.
       const roundStatus: NormalizedPlayerRound["status"] =
         scoreToPar === null
           ? overallStatus === "withdrawn"

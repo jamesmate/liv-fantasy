@@ -26,6 +26,7 @@ import {
   IconTrophy,
   IconCopy,
   IconCheck,
+  IconTrash,
 } from "@tabler/icons-react";
 import {
   api,
@@ -62,6 +63,21 @@ export default function AdminPage() {
   const [savingEspnId, setSavingEspnId] = useState(false);
   const [populatingFromEspn, setPopulatingFromEspn] = useState(false);
   const [populateResult, setPopulateResult] = useState<{ eventName: string; fieldSize: number; added: number; skipped: number } | null>(null);
+
+  async function handleDeleteTournament() {
+    if (!tournament) return;
+    const confirmed = window.confirm(
+      `Delete "${tournament.name}" permanently? This removes all its rounds, players, picks, and scores. This cannot be undone.`
+    );
+    if (!confirmed) return;
+    try {
+      await api.deleteTournament(tournament.id);
+      await refresh();
+    } catch (err: any) {
+      setError(err.message);
+    }
+  }
+
 
   async function handlePopulateFromEspn() {
     if (!tournament) return;
@@ -381,9 +397,21 @@ export default function AdminPage() {
                 <Text fw={600} c="forest.9">
                   {tournament.name}
                 </Text>
-                <Badge color="tangerine" variant="light">
-                  {tournament.status}
-                </Badge>
+                <Group gap="xs">
+                  <Badge color="tangerine" variant="light">
+                    {tournament.status}
+                  </Badge>
+                  <ActionIcon
+                    variant="subtle"
+                    color="coral"
+                    size="sm"
+                    onClick={handleDeleteTournament}
+                    aria-label="Delete tournament"
+                    title="Delete this tournament"
+                  >
+                    <IconTrash size={16} />
+                  </ActionIcon>
+                </Group>
               </Group>
               <Text size="sm" c="forest.2">
                 Set this live once the field is populated and the event begins. Mark it
@@ -664,7 +692,7 @@ export default function AdminPage() {
                             </ActionIcon>
                           ) : (
                             <Badge size="sm" color="coral" variant="light">
-                              Withdrawn
+                              {p.inactive_reason === "missed_cut" ? "Missed Cut" : "Withdrawn"}
                             </Badge>
                           )}
                         </Group>

@@ -294,7 +294,7 @@ export default function PickPage() {
                 <Group gap={6} wrap="nowrap">
                   {!p.is_active && (
                     <Badge color="coral" leftSection={<IconBan size={12} />}>
-                      Withdrawn
+                      {p.inactive_reason === "missed_cut" ? "Missed Cut" : "Withdrawn"}
                     </Badge>
                   )}
                   {p.already_used && p.is_active && (

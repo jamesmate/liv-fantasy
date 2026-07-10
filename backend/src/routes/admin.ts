@@ -72,6 +72,22 @@ adminRouter.patch("/tournaments/:id/status", async (req, res) => {
 
   await query(`update tournaments set status = $1 where id = $2`, [status, req.params.id]);
 
+  if (status === "live") {
+    // Don't wait on the 3-minute interval for the first scores to show
+    // up - fire a sync immediately. Fire-and-forget: the status change
+    // itself already succeeded, and a slow/failed ESPN call shouldn't
+    // block or fail this response. The next interval tick will retry
+    // anyway if this happens to fail.
+    const tournamentRow = await query<{ espn_event_id: string | null }>(
+      `select espn_event_id from tournaments where id = $1`,
+      [req.params.id]
+    );
+    const espnEventId = tournamentRow.rows[0]?.espn_event_id ?? null;
+    syncTournamentScores(req.params.id, espnEventId).catch((err) =>
+      console.error(`Immediate sync on live-flip failed for tournament ${req.params.id}:`, err)
+    );
+  }
+
   if (status === "completed") {
     try {
       const result = await finalizeTournamentResults(req.params.id);
@@ -193,7 +209,24 @@ adminRouter.patch("/tournaments/:id/espn-event-id", async (req, res) => {
   res.json({ success: true });
 });
 
-// POST /admin/tournaments/:id/players  { fullName, proTeamName?, espnPlayerId?, countryCode? }
+// DELETE /admin/tournaments/:id
+// Permanently deletes a tournament and everything tied to it (rounds,
+// player pool, picks, scores, results) - the schema's foreign keys are
+// all "on delete cascade", so this one query cleans up everything.
+// Meant for removing leftover test tournaments, not for real ones with
+// picks people care about - there's no undo.
+adminRouter.delete("/tournaments/:id", async (req, res) => {
+  const result = await query(
+    `delete from tournaments where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+  res.json({ success: true });
+});
+
+
 // Manually adds a player to a tournament's pool. Used both for the
 // initial bulk population and for one-off additions (e.g. a late
 // wild-card replacement) that the ESPN scrape might miss.

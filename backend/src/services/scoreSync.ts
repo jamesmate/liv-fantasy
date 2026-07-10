@@ -66,9 +66,10 @@ async function writeScoresToDb(tournamentId: string, board: NormalizedLeaderboar
   );
   const roundIdByNumber = new Map(roundsResult.rows.map((r) => [r.round_number, r.id]));
 
-  // Track which tournament_players we've seen marked withdrawn this
-  // sync, to avoid redundant updates within the same pass.
-  const withdrawnPlayerIds = new Set<string>();
+  // Track which tournament_players we've seen marked inactive this
+  // sync (withdrawn or missed the cut), to avoid redundant updates
+  // within the same pass.
+  const deactivatedPlayerIds = new Set<string>();
 
   for (const player of board.players) {
     const roundId = roundIdByNumber.get(player.roundNumber);
@@ -102,12 +103,17 @@ async function writeScoresToDb(tournamentId: string, board: NormalizedLeaderboar
       [tournamentPlayerId, roundId, player.scoreToPar, player.thru, player.status]
     );
 
-    // If a player is withdrawn, mark them inactive so the pick UI can
-    // surface a "needs swap" prompt to anyone who picked them.
-    if (player.status === "withdrawn" && !withdrawnPlayerIds.has(tournamentPlayerId)) {
-      withdrawnPlayerIds.add(tournamentPlayerId);
-      await query(`update tournament_players set is_active = false where id = $1`, [
+    // If a player is withdrawn or missed the cut, mark them inactive
+    // so the pick UI can grey them out / prompt a swap for anyone who
+    // picked them.
+    if (
+      (player.status === "withdrawn" || player.status === "missed_cut") &&
+      !deactivatedPlayerIds.has(tournamentPlayerId)
+    ) {
+      deactivatedPlayerIds.add(tournamentPlayerId);
+      await query(`update tournament_players set is_active = false, inactive_reason = $2 where id = $1`, [
         tournamentPlayerId,
+        player.status,
       ]);
     }
   }
