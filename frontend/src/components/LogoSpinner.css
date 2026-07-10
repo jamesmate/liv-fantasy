@@ -1,13 +1,46 @@
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+/*
+ * Each letter tile runs the SAME 1.5s keyframe loop, but starts at a
+ * different point in it via a negative animation-delay (i * -0.25s
+ * in the component) - this is the standard trick for staggering
+ * identical repeating animations without writing a separate keyframe
+ * per letter. The keyframe itself: pop in with an overshoot + wobble
+ * (0%-33%), hold steady (33%-90%), quick fade out (90%-100%) right
+ * before the loop restarts.
+ */
+@keyframes letter-pop-wobble {
+  0% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-18deg);
   }
-  to {
-    transform: rotate(360deg);
+  14% {
+    opacity: 1;
+    transform: scale(1.2) rotate(10deg);
+  }
+  20% {
+    transform: scale(0.92) rotate(-7deg);
+  }
+  26% {
+    transform: scale(1.06) rotate(4deg);
+  }
+  33% {
+    transform: scale(1) rotate(0deg);
+  }
+  90% {
+    opacity: 1;
+    transform: scale(1) rotate(0deg);
+  }
+  95% {
+    opacity: 0;
+    transform: scale(0.8) rotate(6deg);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.3) rotate(-18deg);
   }
 }
 
-.logo-spinner {
-  animation: logo-spin 1.2s linear infinite;
-  display: block;
+.logo-letter {
+  animation: letter-pop-wobble 1.5s ease-in-out infinite;
+  transform-origin: center bottom;
+  flex-shrink: 0;
 }
