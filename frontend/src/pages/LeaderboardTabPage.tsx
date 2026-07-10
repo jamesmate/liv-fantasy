@@ -46,8 +46,8 @@ export default function LeaderboardTabPage() {
 
   if (loading) {
     return (
-      <Center mih="100%">
-        <LogoSpinner size={56} />
+      <Center style={{ height: "calc(100dvh - var(--app-shell-header-height, 60px) - var(--app-shell-footer-height, 64px))" }}>
+        <LogoSpinner width={210} />
       </Center>
     );
   }
