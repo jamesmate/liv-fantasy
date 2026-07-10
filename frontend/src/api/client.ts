@@ -97,6 +97,9 @@ export interface PlayerOption {
   is_active: boolean;
   inactive_reason: string | null;
   already_used: boolean;
+  total_to_par: number | null;
+  rounds_played: number;
+  leaderboard_position: number | null;
 }
 
 export interface PoolPlayer {

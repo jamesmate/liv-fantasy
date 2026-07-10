@@ -45,8 +45,23 @@ picksRouter.get("/:roundId/available-players", requireMember, async (req, res) =
                 and p.member_id = $2
                 and p.round_id != $3
                 and p.tournament_player_id = tp.id
-            ) as already_used
+            ) as already_used,
+            totals.total_to_par,
+            totals.rounds_played,
+            case when totals.total_to_par is null then null
+                 else rank() over (order by totals.total_to_par asc)
+            end as leaderboard_position
        from tournament_players tp
+       left join (
+         select prs.tournament_player_id,
+                sum(prs.score_to_par) as total_to_par,
+                count(*) as rounds_played
+           from player_round_scores prs
+           join rounds r on r.id = prs.round_id
+          where r.tournament_id = $1
+            and prs.score_to_par is not null
+          group by prs.tournament_player_id
+       ) totals on totals.tournament_player_id = tp.id
       where tp.tournament_id = $1
       order by tp.full_name asc`,
     [tournamentId, memberId, roundId]

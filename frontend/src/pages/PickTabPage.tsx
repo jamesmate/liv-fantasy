@@ -40,6 +40,12 @@ import { SelectedLineup } from "../components/SelectedLineup";
 import { PixelGolferSprite } from "../components/sprites/PixelGolferSprite";
 import { getCountryFlagUrl } from "../utils/countryFlags";
 
+function formatToPar(totalToPar: number | null): string {
+  if (totalToPar === null) return "-";
+  if (totalToPar === 0) return "E";
+  return totalToPar > 0 ? `+${totalToPar}` : `${totalToPar}`;
+}
+
 export default function PickTabPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
   const [tournament, setTournament] = useState<CurrentTournament | null>(null);
@@ -47,6 +53,7 @@ export default function PickTabPage() {
   const [loadingTournament, setLoadingTournament] = useState(true);
 
   const [players, setPlayers] = useState<PlayerOption[]>([]);
+  const [sortMode, setSortMode] = useState<"name" | "leaderboard">("name");
   const [selected, setSelected] = useState<string[]>([]);
   const [doublePlayId, setDoublePlayId] = useState<string | null>(null);
   const [scoredPicks, setScoredPicks] = useState<MyPickWithScore[]>([]);
@@ -70,6 +77,19 @@ export default function PickTabPage() {
   const isFinalRound = !!(tournament && activeRoundNumber === tournament.rounds.length);
   const tokenStillUnusedOnFinalRound =
     isFinalRound && doublePlayStatus && !doublePlayStatus.used && !doublePlayId;
+
+  // Leaderboard sort puts players with no recorded score (not started
+  // yet, or ESPN data not synced) at the end rather than treating a
+  // null total as "best" - name sort is the default/stable ordering.
+  const sortedPlayers =
+    sortMode === "leaderboard"
+      ? [...players].sort((a, b) => {
+          if (a.total_to_par === null && b.total_to_par === null) return a.full_name.localeCompare(b.full_name);
+          if (a.total_to_par === null) return 1;
+          if (b.total_to_par === null) return -1;
+          return a.total_to_par - b.total_to_par;
+        })
+      : players;
 
   // Load the tournament once, default to its most sensible "current"
   // round (first upcoming/in-progress round, else the last round).
@@ -360,7 +380,31 @@ export default function PickTabPage() {
             />
           )}
 
-          {players.map((p) => {
+          <Group justify="flex-end" gap={6}>
+            <Text size="xs" c="forest.3">
+              Sort:
+            </Text>
+            <Button.Group>
+              <Button
+                size="compact-xs"
+                variant={sortMode === "name" ? "filled" : "light"}
+                color="mint"
+                onClick={() => setSortMode("name")}
+              >
+                Name
+              </Button>
+              <Button
+                size="compact-xs"
+                variant={sortMode === "leaderboard" ? "filled" : "light"}
+                color="mint"
+                onClick={() => setSortMode("leaderboard")}
+              >
+                Leaderboard
+              </Button>
+            </Button.Group>
+          </Group>
+
+          {sortedPlayers.map((p) => {
             const disabled = isLocked || p.already_used || !p.is_active;
             const isSelected = selected.includes(p.id);
             const hasToken = doublePlayId === p.id;
@@ -420,6 +464,24 @@ export default function PickTabPage() {
                   </Group>
 
                   <Group gap={6} wrap="nowrap">
+                    {p.total_to_par !== null && (
+                      <Text
+                        size="sm"
+                        fw={700}
+                        c={
+                          p.total_to_par < 0
+                            ? "mint.4"
+                            : p.total_to_par > 0
+                            ? "coral.4"
+                            : isSelected
+                            ? "mint.1"
+                            : "forest.2"
+                        }
+                        style={{ minWidth: 30, textAlign: "right" }}
+                      >
+                        {formatToPar(p.total_to_par)}
+                      </Text>
+                    )}
                     {!p.is_active && (
                       <Badge color="coral" leftSection={<IconBan size={12} />}>
                         {p.inactive_reason === "missed_cut" ? "Missed Cut" : "Withdrawn"}
