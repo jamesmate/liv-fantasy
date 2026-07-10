@@ -277,8 +277,8 @@ export default function PickTabPage() {
           does not scroll or shrink */}
       <Box
         style={{
-          height: "33vh",
-          minHeight: 220,
+          height: "24vh",
+          minHeight: 170,
           flexShrink: 0,
           position: "relative",
         }}
@@ -326,8 +326,8 @@ export default function PickTabPage() {
       </Box>
 
       {/* Bottom 2/3: scrollable player list */}
-      <Box style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "12px 16px" }}>
-        <Stack gap="xs">
+      <Box style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 16px" }}>
+        <Stack gap={6}>
           {!isLocked && needsSwap.length > 0 && (
             <Alert color="coral" icon={<IconArrowsExchange size={18} />} title="Swap needed">
               <Stack gap={6}>
@@ -412,7 +412,7 @@ export default function PickTabPage() {
             return (
               <Card
                 key={p.id}
-                p="sm"
+                p={8}
                 bg={isSelected ? "mint.9" : "forest.7"}
                 style={{
                   cursor: disabled ? "not-allowed" : "pointer",
@@ -426,7 +426,7 @@ export default function PickTabPage() {
               >
                 <Group justify="space-between" wrap="nowrap">
                   <Group
-                    gap="sm"
+                    gap={8}
                     wrap="nowrap"
                     style={{ flex: 1, cursor: disabled ? "not-allowed" : "pointer" }}
                     onClick={() => togglePlayer(p.id, disabled)}
@@ -435,10 +435,10 @@ export default function PickTabPage() {
                       variant="light"
                       color={isSelected ? "mint" : "forest"}
                       radius="xl"
-                      size={40}
-                      style={{ overflow: "hidden", padding: 2 }}
+                      size={30}
+                      style={{ overflow: "hidden", padding: 2, flexShrink: 0 }}
                     >
-                      <PixelGolferSprite playerName={p.full_name} size={32} bobbing={false} />
+                      <PixelGolferSprite playerName={p.full_name} size={24} bobbing={false} />
                     </ThemeIcon>
                     <div>
                       <Group gap={4} wrap="nowrap">
