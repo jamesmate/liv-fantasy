@@ -9,11 +9,11 @@ import {
   UnstyledButton,
   Badge,
   Center,
-  Loader,
 } from "@mantine/core";
 import { IconChevronDown, IconChevronUp, IconBolt } from "@tabler/icons-react";
 import { api, LeaderboardResponse, LeaderboardTeam } from "../api/client";
 import { getCountryFlagUrl } from "../utils/countryFlags";
+import { LogoSpinner } from "../components/LogoSpinner";
 
 function formatToPar(n: number | null): string {
   if (n === null) return "-";
@@ -47,7 +47,7 @@ export default function LeaderboardTabPage() {
   if (loading) {
     return (
       <Center mih="100%">
-        <Loader color="mint" />
+        <LogoSpinner size={56} />
       </Center>
     );
   }

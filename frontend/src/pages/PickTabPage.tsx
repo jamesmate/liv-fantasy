@@ -15,7 +15,6 @@ import {
   Tooltip,
   Card,
   Center,
-  Loader,
 } from "@mantine/core";
 import {
   IconCheck,
@@ -39,6 +38,7 @@ import {
 import { SelectedLineup } from "../components/SelectedLineup";
 import { PixelGolferSprite } from "../components/sprites/PixelGolferSprite";
 import { getCountryFlagUrl } from "../utils/countryFlags";
+import { LogoSpinner } from "../components/LogoSpinner";
 
 function formatToPar(totalToPar: number | null): string {
   if (totalToPar === null) return "-";
@@ -251,7 +251,7 @@ export default function PickTabPage() {
   if (loadingTournament) {
     return (
       <Center mih="100%">
-        <Loader color="mint" />
+        <LogoSpinner size={56} />
       </Center>
     );
   }

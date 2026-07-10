@@ -9,12 +9,12 @@ import {
   Badge,
   Group,
   Center,
-  Loader,
   CopyButton,
   ActionIcon,
   Tooltip,
   Alert,
 } from "@mantine/core";
+import { LogoSpinner } from "../components/LogoSpinner";
 import {
   IconChartBar,
   IconGolf,
@@ -60,7 +60,7 @@ export default function LeagueHomePage() {
   if (loading) {
     return (
       <Center mt="xl">
-        <Loader color="mint" />
+        <LogoSpinner size={56} />
       </Center>
     );
   }

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { Box, Text, Stack, Group, Center, Loader } from "@mantine/core";
+import { Box, Text, Stack, Group, Center } from "@mantine/core";
 import { IconMedal } from "@tabler/icons-react";
 import { api, PodiumStanding } from "../api/client";
+import { LogoSpinner } from "../components/LogoSpinner";
 
 const MEDAL_COLORS = ["#d4af37", "#a8a8a8", "#b08d57"]; // gold, silver, bronze
 
@@ -24,7 +25,7 @@ export default function OverallStandingsTabPage() {
   if (loading) {
     return (
       <Center mih="100%">
-        <Loader color="mint" />
+        <LogoSpinner size={56} />
       </Center>
     );
   }
