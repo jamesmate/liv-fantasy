@@ -227,7 +227,10 @@ export default function PickTabPage() {
       id,
       name: p?.full_name ?? scored?.player_name ?? "?",
       scoreToPar: scored?.effective_score_to_par,
-      hasDoublePlay: scored?.has_double_play,
+      // Live selection (before saving) takes priority over the saved
+      // flag from a previous save, so the club pose swaps in the
+      // moment someone taps the bolt icon, not just after it's saved.
+      hasDoublePlay: doublePlayId === id || !!scored?.has_double_play,
     };
   });
 
@@ -438,7 +441,12 @@ export default function PickTabPage() {
                       size={30}
                       style={{ overflow: "hidden", padding: 2, flexShrink: 0 }}
                     >
-                      <PixelGolferSprite playerName={p.full_name} size={24} bobbing={false} />
+                      <PixelGolferSprite
+                        playerName={p.full_name}
+                        size={24}
+                        bobbing={false}
+                        isTopScorer={hasToken}
+                      />
                     </ThemeIcon>
                     <div>
                       <Group gap={4} wrap="nowrap">

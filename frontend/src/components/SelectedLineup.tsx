@@ -107,7 +107,7 @@ export function SelectedLineup({
                   playerName={slot.name}
                   size={52}
                   lineupIndex={slotIndex}
-                  isTopScorer={!!topScorerName && slot.name === topScorerName}
+                  isTopScorer={(!!topScorerName && slot.name === topScorerName) || !!slot.hasDoublePlay}
                 />
               ) : (
                 <div
