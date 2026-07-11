@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, useSearchParams, Link } from "react-router-dom";
 import {
   Card,
   Title,
@@ -15,7 +15,8 @@ import { IconFlag3, IconAlertTriangle } from "@tabler/icons-react";
 import { api, setSession } from "../api/client";
 
 export default function LoginPage() {
-  const [joinCode, setJoinCode] = useState("");
+  const [searchParams] = useSearchParams();
+  const [joinCode, setJoinCode] = useState(searchParams.get("joinCode") || "");
   const [teamName, setTeamName] = useState("");
   const [passcode, setPasscode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +38,8 @@ export default function LoginPage() {
     }
   }
 
+  const sessionExpired = searchParams.get("reason") === "expired";
+
   return (
     <Card bg="forest.7" p="xl">
       <Stack gap={4} mb="lg" align="center">
@@ -48,6 +51,12 @@ export default function LoginPage() {
           Already have a team? Log back in from any device with your passcode.
         </Text>
       </Stack>
+
+      {sessionExpired && (
+        <Alert color="tangerine" variant="light" mb="md">
+          Your session needs refreshing - just log back in with your passcode below.
+        </Alert>
+      )}
 
       <form onSubmit={handleSubmit}>
         <Stack gap="md">
@@ -92,7 +101,7 @@ export default function LoginPage() {
             </Anchor>
           </Text>
           <Text size="sm" ta="center" c="forest.2">
-            Note: logging in on a new device will sign this team out of any other device it was logged into.
+            You can be logged in on more than one device at once.
           </Text>
         </Stack>
       </form>

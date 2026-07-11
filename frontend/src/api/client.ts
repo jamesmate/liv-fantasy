@@ -62,6 +62,25 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
+
+    // A 401 while we THOUGHT we had a valid token means the session
+    // died server-side (e.g. after a migration, or if the account was
+    // logged out elsewhere in a flow that does invalidate tokens).
+    // Rather than leave the page stuck showing a raw error with no
+    // way forward, clear the stale session and send them to re-login.
+    // Skip this on the login/join pages themselves, so a wrong
+    // passcode just shows its own error instead of bouncing in a loop.
+    if (res.status === 401 && token) {
+      const onAuthPage = window.location.pathname.startsWith("/login") || window.location.pathname.startsWith("/join");
+      if (!onAuthPage) {
+        const joinCode = getStoredJoinCode();
+        clearSession();
+        window.location.href = joinCode
+          ? `/login?joinCode=${encodeURIComponent(joinCode)}&reason=expired`
+          : "/login?reason=expired";
+      }
+    }
+
     throw new Error(body.error || `Request failed: ${res.status}`);
   }
   return res.json();
