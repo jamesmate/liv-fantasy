@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { query } from "../db/client";
 import { requireMember } from "../middleware/auth";
 import { hashPasscode, verifyPasscode } from "../utils/passcode";
+import { maybeSync } from "../services/scoreSync";
 
 export const leagueRouter = Router();
 
@@ -184,6 +185,7 @@ leagueRouter.get("/:id/current-tournament", async (req, res) => {
   if (tournament.rows.length === 0) {
     return res.json(null);
   }
+  maybeSync(tournament.rows[0].id, tournament.rows[0].espn_event_id, tournament.rows[0].status);
   const rounds = await query(
     `select * from rounds where tournament_id = $1 order by round_number asc`,
     [tournament.rows[0].id]

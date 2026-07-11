@@ -42,6 +42,13 @@ alter table members add column if not exists passcode_hash text;
 -- always saying "Withdrawn" regardless of the actual reason.
 alter table tournament_players add column if not exists inactive_reason text;
 
+-- When this tournament's scores were last pulled from ESPN. Used to
+-- throttle the "sync on page load" behaviour - see maybeSync() in
+-- services/scoreSync.ts - so a burst of page loads from several
+-- members within a few seconds of each other triggers one ESPN call,
+-- not one per request.
+alter table tournaments add column if not exists last_synced_at timestamptz;
+
 -- A LIV Golf event, e.g. "LIV Golf Andalucia 2026".
 -- espn_event_id is the identifier used to query the ESPN adapter.
 create table if not exists tournaments (

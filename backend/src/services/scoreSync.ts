@@ -52,7 +52,53 @@ export async function syncTournamentScores(tournamentId: string, espnEventId: st
   }
 
   await writeScoresToDb(tournamentId, board);
+  await query(`update tournaments set last_synced_at = now() where id = $1`, [tournamentId]);
   return board;
+}
+
+const MIN_SECONDS_BETWEEN_SYNCS = 90;
+
+// In-memory guard against overlapping syncs for the same tournament -
+// e.g. two page loads landing within the same second, before the DB's
+// last_synced_at has even been updated by the first one's write.
+const syncInFlight = new Set<string>();
+
+/**
+ * Fire-and-forget: called from GET routes that members hit routinely
+ * (loading the pick screen, the leaderboard, etc). If it's been more
+ * than MIN_SECONDS_BETWEEN_SYNCS since this tournament's last sync,
+ * kicks off a real sync in the background WITHOUT making the caller
+ * wait for it - the current request still returns immediately with
+ * whatever data is already in the DB. The freshly-synced data shows
+ * up on the NEXT request instead, which in practice is nearly
+ * instant since syncs take well under a second.
+ *
+ * This means active use of the app (people actually loading pages)
+ * keeps scores fresh on its own, without needing every single
+ * request to wait on an ESPN round-trip, and without needing a
+ * background cron/keep-alive ping to be the only thing keeping data
+ * current.
+ */
+export function maybeSync(tournamentId: string, espnEventId: string | null, status: string) {
+  if (status !== "live" || !espnEventId) return;
+  if (syncInFlight.has(tournamentId)) return;
+
+  query<{ last_synced_at: string | null }>(
+    `select last_synced_at from tournaments where id = $1`,
+    [tournamentId]
+  )
+    .then((result) => {
+      const lastSynced = result.rows[0]?.last_synced_at;
+      const staleEnough =
+        !lastSynced || Date.now() - new Date(lastSynced).getTime() > MIN_SECONDS_BETWEEN_SYNCS * 1000;
+      if (!staleEnough) return;
+
+      syncInFlight.add(tournamentId);
+      syncTournamentScores(tournamentId, espnEventId)
+        .catch((err) => console.error(`[scoreSync] maybeSync failed for tournament ${tournamentId}:`, err))
+        .finally(() => syncInFlight.delete(tournamentId));
+    })
+    .catch((err) => console.error(`[scoreSync] maybeSync last_synced_at lookup failed:`, err));
 }
 
 async function writeScoresToDb(tournamentId: string, board: NormalizedLeaderboard) {

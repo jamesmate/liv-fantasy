@@ -7,6 +7,7 @@ import {
   PickValidationError,
 } from "../services/picks";
 import { requireMember } from "../middleware/auth";
+import { maybeSync } from "../services/scoreSync";
 
 export const picksRouter = Router();
 
@@ -35,6 +36,12 @@ picksRouter.get("/:roundId/available-players", requireMember, async (req, res) =
   );
   const tournamentId = roundRes.rows[0]?.tournament_id;
   if (!tournamentId) return res.status(404).json({ error: "Round not found." });
+
+  const tournamentRow = await query<{ espn_event_id: string | null; status: string }>(
+    `select espn_event_id, status from tournaments where id = $1`,
+    [tournamentId]
+  );
+  maybeSync(tournamentId, tournamentRow.rows[0]?.espn_event_id ?? null, tournamentRow.rows[0]?.status ?? "");
 
   const players = await query(
     `select tp.id, tp.full_name, tp.pro_team_name, tp.country_code, tp.is_active, tp.inactive_reason,
