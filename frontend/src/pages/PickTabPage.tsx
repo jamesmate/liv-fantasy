@@ -46,6 +46,31 @@ function formatToPar(totalToPar: number | null): string {
   return totalToPar > 0 ? `+${totalToPar}` : `${totalToPar}`;
 }
 
+// Diverging red-to-green gradient for a single round's score, used on
+// the small per-round chips in the pick list. Deep green for a very
+// good round, a light neutral tone right around even par, deep red
+// for a very bad one - clamped at +/-5 so one blow-up hole doesn't
+// blow out the whole scale.
+function getScoreColor(scoreToPar: number): string {
+  const clamped = Math.max(-5, Math.min(5, scoreToPar));
+  const deepGreen: [number, number, number] = [22, 120, 62];
+  const neutral: [number, number, number] = [230, 227, 218];
+  const deepRed: [number, number, number] = [150, 24, 24];
+
+  const [from, to, t] =
+    clamped <= 0 ? [deepGreen, neutral, (clamped + 5) / 5] : [neutral, deepRed, clamped / 5];
+
+  const [r, g, b] = from.map((c, i) => Math.round(c + (to[i] - c) * t));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+// White text reads fine on the saturated ends of the gradient, but not
+// on the pale neutral middle - switch to dark text once we're close
+// enough to even par.
+function getScoreTextColor(scoreToPar: number): string {
+  return Math.abs(scoreToPar) <= 1 ? "#2b2b2b" : "#ffffff";
+}
+
 // Common lowercase surname particles that belong WITH the following
 // word rather than being treated as part of the first name - e.g.
 // "Erik van Rooyen" should sort under "van Rooyen", not just "Rooyen".
@@ -488,6 +513,28 @@ export default function PickTabPage() {
                         <Text size="xs" c={isSelected ? "mint.2" : "forest.2"}>
                           {p.pro_team_name}
                         </Text>
+                      )}
+                      {p.round_scores.length > 0 && (
+                        <Group gap={3} mt={2} wrap="nowrap">
+                          {p.round_scores.map((rs) => (
+                            <Text
+                              key={rs.round_number}
+                              size="10px"
+                              fw={700}
+                              ta="center"
+                              style={{
+                                backgroundColor: getScoreColor(rs.score_to_par),
+                                color: getScoreTextColor(rs.score_to_par),
+                                borderRadius: 3,
+                                width: 20,
+                                lineHeight: "15px",
+                                flexShrink: 0,
+                              }}
+                            >
+                              {rs.score_to_par === 0 ? "E" : rs.score_to_par > 0 ? `+${rs.score_to_par}` : rs.score_to_par}
+                            </Text>
+                          ))}
+                        </Group>
                       )}
                     </div>
                   </Group>

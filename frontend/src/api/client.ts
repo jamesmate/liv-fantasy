@@ -119,6 +119,7 @@ export interface PlayerOption {
   total_to_par: number | null;
   rounds_played: number;
   leaderboard_position: number | null;
+  round_scores: Array<{ round_number: number; score_to_par: number }>;
 }
 
 export interface PoolPlayer {

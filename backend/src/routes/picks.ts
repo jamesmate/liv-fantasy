@@ -57,7 +57,18 @@ picksRouter.get("/:roundId/available-players", requireMember, async (req, res) =
             totals.rounds_played,
             case when totals.total_to_par is null then null
                  else rank() over (order by totals.total_to_par asc)
-            end as leaderboard_position
+            end as leaderboard_position,
+            coalesce(
+              (select json_agg(
+                        json_build_object('round_number', r.round_number, 'score_to_par', prs.score_to_par)
+                        order by r.round_number
+                      )
+                 from player_round_scores prs
+                 join rounds r on r.id = prs.round_id
+                where prs.tournament_player_id = tp.id
+                  and prs.score_to_par is not null),
+              '[]'
+            ) as round_scores
        from tournament_players tp
        left join (
          select prs.tournament_player_id,
