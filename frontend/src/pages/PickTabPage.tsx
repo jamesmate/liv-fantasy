@@ -46,6 +46,25 @@ function formatToPar(totalToPar: number | null): string {
   return totalToPar > 0 ? `+${totalToPar}` : `${totalToPar}`;
 }
 
+// Common lowercase surname particles that belong WITH the following
+// word rather than being treated as part of the first name - e.g.
+// "Erik van Rooyen" should sort under "van Rooyen", not just "Rooyen".
+const SURNAME_PARTICLES = new Set(["van", "von", "de", "du", "la", "le", "der", "den", "di", "da"]);
+
+function getSurname(fullName: string): string {
+  const parts = fullName.trim().split(/\s+/);
+  if (parts.length <= 1) return fullName;
+  const lastIndex = parts.length - 1;
+  // Walk backwards from the last word, absorbing any particle(s)
+  // immediately before it (handles "van Rooyen", "von Dellingshausen",
+  // and the rare double-particle case like "van der Berg").
+  let start = lastIndex;
+  while (start > 0 && SURNAME_PARTICLES.has(parts[start - 1].toLowerCase())) {
+    start--;
+  }
+  return parts.slice(start).join(" ");
+}
+
 export default function PickTabPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
   const [tournament, setTournament] = useState<CurrentTournament | null>(null);
@@ -80,7 +99,9 @@ export default function PickTabPage() {
 
   // Leaderboard sort puts players with no recorded score (not started
   // yet, or ESPN data not synced) at the end rather than treating a
-  // null total as "best" - name sort is the default/stable ordering.
+  // null total as "best". Name sort is by SURNAME (not the backend's
+  // default first-name ordering) since that's how people actually
+  // look someone up in a golf field.
   const sortedPlayers =
     sortMode === "leaderboard"
       ? [...players].sort((a, b) => {
@@ -89,7 +110,7 @@ export default function PickTabPage() {
           if (b.total_to_par === null) return -1;
           return a.total_to_par - b.total_to_par;
         })
-      : players;
+      : [...players].sort((a, b) => getSurname(a.full_name).localeCompare(getSurname(b.full_name)));
 
   // Load the tournament once, default to its most sensible "current"
   // round (first upcoming/in-progress round, else the last round).
@@ -250,7 +271,7 @@ export default function PickTabPage() {
 
   if (loadingTournament) {
     return (
-      <Center mih="100%">
+      <Center style={{ height: "calc(100dvh - var(--app-shell-header-height, 60px) - var(--app-shell-footer-height, 64px))" }}>
         <LogoSpinner width={210} />
       </Center>
     );
@@ -394,7 +415,7 @@ export default function PickTabPage() {
                 color="mint"
                 onClick={() => setSortMode("name")}
               >
-                Name
+                Surname
               </Button>
               <Button
                 size="compact-xs"
