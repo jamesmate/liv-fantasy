@@ -19,8 +19,10 @@ declare global {
  * Expects header: Authorization: Bearer <sessionToken>
  * This is intentionally simple (no passwords, no JWT) since this is a
  * private app for a small group of colleagues joining via a league
- * code. The token is generated once at join time and stored by the
- * client (localStorage) for subsequent requests.
+ * code. Tokens live in the `sessions` table (one member can have
+ * several - laptop, phone, etc - all valid at once), generated at
+ * join/create/login time and stored by the client (localStorage) for
+ * subsequent requests.
  */
 export async function requireMember(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
@@ -37,7 +39,10 @@ export async function requireMember(req: Request, res: Response, next: NextFunct
     display_name: string;
     is_owner: boolean;
   }>(
-    `select id, league_id, team_name, display_name, is_owner from members where session_token = $1`,
+    `select m.id, m.league_id, m.team_name, m.display_name, m.is_owner
+       from sessions s
+       join members m on m.id = s.member_id
+      where s.token = $1`,
     [token]
   );
 

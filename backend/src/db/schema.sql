@@ -49,6 +49,24 @@ alter table tournament_players add column if not exists inactive_reason text;
 -- not one per request.
 alter table tournaments add column if not exists last_synced_at timestamptz;
 
+-- The old model stored a single session_token directly on the member
+-- row, which meant logging in on a second device silently invalidated
+-- the first one (only one token could ever be valid at once). This
+-- table lets a member have multiple simultaneously-valid sessions -
+-- laptop, phone, etc - without kicking each other out.
+create table if not exists sessions (
+  id uuid primary key default gen_random_uuid(),
+  member_id uuid not null references members(id) on delete cascade,
+  token text not null unique,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_sessions_token on sessions(token);
+
+-- session_token on members is no longer written to or read from for
+-- auth (sessions table above replaces it) - loosened rather than
+-- dropped, so this migration stays additive-only and reversible.
+alter table members alter column session_token drop not null;
+
 -- A LIV Golf event, e.g. "LIV Golf Andalucia 2026".
 -- espn_event_id is the identifier used to query the ESPN adapter.
 create table if not exists tournaments (

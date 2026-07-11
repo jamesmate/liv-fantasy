@@ -51,6 +51,7 @@ leagueRouter.post("/", async (req, res) => {
      values ($1, $2, $3, $4, true) returning id`,
     [leagueId, ownerDisplayName, ownerTeamName, sessionToken]
   );
+  await query(`insert into sessions (member_id, token) values ($1, $2)`, [owner.rows[0].id, sessionToken]);
 
   res.status(201).json({
     leagueId,
@@ -92,6 +93,7 @@ leagueRouter.post("/join", async (req, res) => {
      values ($1, $2, $3, $4) returning id`,
     [leagueId, displayName, teamName, sessionToken]
   );
+  await query(`insert into sessions (member_id, token) values ($1, $2)`, [member.rows[0].id, sessionToken]);
 
   res.status(201).json({
     memberId: member.rows[0].id,
@@ -120,11 +122,10 @@ leagueRouter.post("/passcode", requireMember, async (req, res) => {
 
 // POST /leagues/login  { joinCode, teamName, passcode }
 // Logs back into an EXISTING team from any device, using the passcode
-// that team set via /leagues/passcode. Issues a fresh session token
-// and overwrites the stored one - the schema only tracks one active
-// token per member, so logging in on a new device (e.g. mobile) will
-// sign that team out on whichever device was previously logged in.
-// Simply log in again there with the same passcode if you need it back.
+// that team set via /leagues/passcode. Issues a new session token
+// ADDED to this member's sessions, alongside any others already
+// active - logging in on a new device (e.g. mobile) no longer signs
+// out other devices, since each has its own row in the sessions table.
 leagueRouter.post("/login", async (req, res) => {
   const { joinCode, teamName, passcode } = req.body;
   if (!joinCode || !teamName || !passcode) {
@@ -163,7 +164,7 @@ leagueRouter.post("/login", async (req, res) => {
   }
 
   const sessionToken = crypto.randomBytes(24).toString("hex");
-  await query(`update members set session_token = $1 where id = $2`, [sessionToken, memberId]);
+  await query(`insert into sessions (member_id, token) values ($1, $2)`, [memberId, sessionToken]);
 
   res.json({
     memberId,
