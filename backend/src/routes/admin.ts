@@ -586,9 +586,28 @@ adminRouter.delete("/tournaments/:id/players", async (req, res) => {
 // GET /admin/tournaments/:id/players - full pool, including inactive,
 // for the admin's "manage players" screen (unlike the picks-facing
 // /rounds/.../available-players endpoint, this isn't filtered per member).
+// Includes each player's per-round scores (joined from
+// player_round_scores) so sync issues can be diagnosed directly from
+// this one response instead of querying the DB by hand.
 adminRouter.get("/tournaments/:id/players", async (req, res) => {
   const result = await query(
-    `select tp.* from tournament_players tp
+    `select tp.*,
+            coalesce(
+              (select json_agg(
+                        json_build_object(
+                          'round_number', r.round_number,
+                          'score_to_par', prs.score_to_par,
+                          'thru', prs.thru,
+                          'status', prs.status,
+                          'synced_at', prs.updated_at
+                        ) order by r.round_number
+                      )
+                 from player_round_scores prs
+                 join rounds r on r.id = prs.round_id
+                where prs.tournament_player_id = tp.id),
+              '[]'
+            ) as round_scores
+       from tournament_players tp
        join tournaments t on t.id = tp.tournament_id
       where tp.tournament_id = $1 and t.league_id = $2
       order by tp.full_name asc`,
