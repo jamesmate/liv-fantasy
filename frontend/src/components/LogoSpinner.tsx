@@ -20,10 +20,11 @@ const LETTERS: { char: string; file: string; aspect: number }[] = [
 // Each letter shares one keyframe (see LogoSpinner.css) but starts at
 // a different point in it via a negative animation-delay - the
 // standard trick for staggering identical repeating animations. This
-// offset controls how far apart each letter's "jump" is timed, in
-// seconds - small enough that letters visibly cascade left to right
-// as a wave, not so small that they all jump at once.
-const STEP_SECONDS = 0.4;
+// offset controls how far apart each letter's "big" bounce lands, in
+// seconds - matched to the keyframe's own bounce-window length so the
+// bounce visibly travels left to right with no dead gap between one
+// letter settling and the next starting.
+const STEP_SECONDS = 0.22;
 
 /**
  * Loading indicator: JAMDOG's real letter art jumping in left to
@@ -31,7 +32,7 @@ const STEP_SECONDS = 0.4;
  */
 export function LogoSpinner({ height = 56 }: LogoSpinnerProps) {
   return (
-    <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height }}>
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 0, height }}>
       {LETTERS.map((letter, i) => (
         <img
           key={letter.char}

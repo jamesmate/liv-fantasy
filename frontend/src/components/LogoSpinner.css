@@ -1,49 +1,55 @@
 /*
- * Each letter tile runs the SAME 3.2s keyframe loop, but starts at a
- * different point in it via a negative animation-delay (i * -0.4s in
+ * Each letter tile runs the SAME 1.32s keyframe loop, but starts at a
+ * different point in it via a negative animation-delay (i * -0.22s in
  * the component) - the standard trick for staggering identical
- * repeating animations without writing a separate keyframe per
- * letter. With a 0.4s step between 6 letters, the cascade reaches the
- * last letter at 2.0s in; the keyframe's own pop window (0%-12%,
- * i.e. ~0.38s of the 3.2s cycle) is sized to roughly match that step,
- * so each letter is finishing its jump right as the next one starts -
- * reading as a clean left-to-right wave rather than a scattered
- * flicker or a sluggish one-at-a-time crawl.
+ * repeating animations. 6 letters * 0.22s step = exactly one full
+ * 1.32s cycle, so the "big bounce" below reaches letter 6 right as
+ * letter 1's next lap is about to begin - a continuous wave with no
+ * dead gap.
+ *
+ * Two things this deliberately does differently from the first pass:
+ *   1. opacity stays at 1 for the ENTIRE keyframe - nothing ever
+ *      fades out/disappears, only scale/rotate change.
+ *   2. the "hold" portion isn't actually flat/static - it has its
+ *      own small continuous wobble (28%-100%) so a letter between
+ *      its big bounces still visibly moves the whole time, instead
+ *      of sitting frozen for most of the loop.
  */
 @keyframes letter-pop-wobble {
   0% {
-    opacity: 0;
-    transform: scale(0.3) rotate(-18deg);
+    transform: scale(1) rotate(0deg);
   }
-  5% {
-    opacity: 1;
-    transform: scale(1.22) rotate(11deg);
+  6% {
+    transform: scale(1.25) rotate(12deg);
   }
-  7% {
-    transform: scale(0.9) rotate(-8deg);
-  }
-  9.5% {
-    transform: scale(1.07) rotate(4deg);
+  9% {
+    transform: scale(0.9) rotate(-9deg);
   }
   12% {
+    transform: scale(1.06) rotate(5deg);
+  }
+  16% {
     transform: scale(1) rotate(0deg);
   }
-  88% {
-    opacity: 1;
-    transform: scale(1) rotate(0deg);
+  32% {
+    transform: scale(1.04) rotate(-3deg);
   }
-  95% {
-    opacity: 0;
-    transform: scale(0.8) rotate(6deg);
+  48% {
+    transform: scale(0.97) rotate(3deg);
+  }
+  64% {
+    transform: scale(1.04) rotate(-3deg);
+  }
+  80% {
+    transform: scale(0.98) rotate(2deg);
   }
   100% {
-    opacity: 0;
-    transform: scale(0.3) rotate(-18deg);
+    transform: scale(1) rotate(0deg);
   }
 }
 
 .logo-letter {
-  animation: letter-pop-wobble 3.2s ease-in-out infinite;
+  animation: letter-pop-wobble 1.32s ease-in-out infinite;
   transform-origin: center bottom;
   flex-shrink: 0;
 }
