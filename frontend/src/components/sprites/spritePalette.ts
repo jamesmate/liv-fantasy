@@ -32,12 +32,24 @@ const SKIN_TONE_POOL: HueSat[] = [
   { hue: 0.04, saturation: 0.55 },
 ];
 
+// Hue/saturation targets only (see recolorSprite.ts) - brightness
+// always comes from the original artwork's shading, which is why
+// there's no true "jet black" option here: at saturation 0, hue is
+// irrelevant and the pixel just renders at whatever grey level the
+// source shading already has. "Black/dark" below uses a very low but
+// non-zero saturation so it reads slightly warmer/darker than the
+// flat "grey" option rather than being a literal duplicate of it -
+// the previous version had TWO entries at the exact same {hue: 0,
+// saturation: 0}, which is why grey/black was showing up roughly
+// twice as often as any other color instead of by chance alone.
 const HAIR_COLORS: HueSat[] = [
-  { hue: 0.07, saturation: 0.55 }, // brown (close to original)
-  { hue: 0.0, saturation: 0.0 },   // black/grey (desaturated)
-  { hue: 0.13, saturation: 0.5 },  // sandy/blonde
-  { hue: 0.95, saturation: 0.45 }, // auburn/red-brown
-  { hue: 0.0, saturation: 0.0 },   // grey (special-cased brighter in recolorSprite.ts)
+  { hue: 0.07, saturation: 0.6 },   // dark brown
+  { hue: 0.08, saturation: 0.42 },  // medium brown
+  { hue: 0.11, saturation: 0.38 },  // light brown / dirty blonde
+  { hue: 0.14, saturation: 0.32 },  // blonde
+  { hue: 0.02, saturation: 0.5 },   // auburn/copper
+  { hue: 0.0, saturation: 0.08 },   // near-black
+  { hue: 0.0, saturation: 0.0 },    // grey/white
 ];
 
 const CLOTHING_COLORS: HueSat[] = [
