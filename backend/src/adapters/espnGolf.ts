@@ -69,19 +69,37 @@ export interface NormalizedLeaderboard {
 }
 
 /**
- * Maps ESPN's status description to our internal enum. Prefers
- * `type.description` (e.g. "Withdrawn", "Finish", "In Progress") over
- * `type.name` (e.g. "STATUS_CUT" for a withdrawal) since the name enum
- * is reused inconsistently across ESPN's sports and is misleading for
- * golf specifically - LIV has no cut, but ESPN's withdrawn status
- * still uses the "STATUS_CUT" identifier internally.
+ * Maps ESPN's status to our internal enum.
+ *
+ * Withdrawal detection checks every subfield ESPN might populate
+ * (name, description, shortDetail, detail) - this needs to stay
+ * broad, since LIV events (which have no real cut) use the literal
+ * enum name "STATUS_CUT" to represent a withdrawal, and that's the
+ * one already-verified-reliable signal for LIV.
+ *
+ * Missed-cut detection deliberately does NOT check `type.name`, only
+ * the human-readable fields (description, shortDetail, detail) - if
+ * it included `name`, every LIV withdrawal ("STATUS_CUT" in name)
+ * would risk being misread as a missed cut instead, on any event
+ * where the human-readable withdrawal text happens to be missing.
+ * Keeping the two checks on non-overlapping field sets means a LIV
+ * event can never produce a false "missed_cut" no matter what ESPN
+ * does or doesn't populate - there's no field a LIV withdrawal could
+ * hit that this cut-check also reads from.
  */
-function normalizeStatus(description: string | undefined): NormalizedPlayerRound["status"] {
-  const s = (description || "").toLowerCase();
-  if (s.includes("withdr") || s.includes("wd")) return "withdrawn";
-  if (s.includes("cut")) return "missed_cut";
-  if (s.includes("finish") || s.includes("final") || s.includes("complete")) return "completed";
-  if (s.includes("progress") || s.includes("active")) return "in_progress";
+function normalizeStatus(type: { description?: string; name?: string; shortDetail?: string; detail?: string } | undefined): NormalizedPlayerRound["status"] {
+  const withdrawalText = [type?.description, type?.name, type?.shortDetail, type?.detail]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+  if (withdrawalText.includes("withdr") || /\bwd\b/.test(withdrawalText)) return "withdrawn";
+
+  const cutText = [type?.description, type?.shortDetail, type?.detail].filter(Boolean).join(" ").toLowerCase();
+  if (cutText.includes("cut") || /\bmc\b/.test(cutText)) return "missed_cut";
+
+  if (withdrawalText.includes("finish") || withdrawalText.includes("final") || withdrawalText.includes("complete"))
+    return "completed";
+  if (withdrawalText.includes("progress") || withdrawalText.includes("active")) return "in_progress";
   return "not_started";
 }
 
@@ -125,7 +143,7 @@ function normalizeEspnResponse(raw: any): NormalizedLeaderboard {
     const athlete = c.athlete ?? {};
     const espnPlayerId = String(athlete.id ?? c.id ?? "");
     const fullName = athlete.displayName ?? "Unknown Player";
-    const overallStatus = normalizeStatus(c.status?.type?.description);
+    const overallStatus = normalizeStatus(c.status?.type);
     const linescores = c.linescores ?? [];
 
     // Emit one NormalizedPlayerRound per round that ESPN has a
@@ -158,6 +176,33 @@ function normalizeEspnResponse(raw: any): NormalizedLeaderboard {
         thru: roundNumber === (competition?.status?.period ?? roundNumber) ? Number(c.status?.thru ?? 0) : 18,
         status: roundStatus,
       });
+    }
+
+    // ESPN appears to stop emitting a linescore entry entirely for
+    // future rounds once a player is cut/withdrawn, rather than
+    // including one with a "Cut"/"Withdrawn" status - so there may be
+    // no row above that actually carries overallStatus. Without an
+    // explicit marker, that player's tournament_players row never
+    // gets deactivated (nothing for writeScoresToDb to key off of).
+    // If their last emitted round is behind the tournament's current
+    // round, push one synthetic row for the round they're missing,
+    // carrying the cut/withdrawn status - this never overwrites a
+    // real played round, since it only fires for a round number
+    // strictly after anything they actually have a score for.
+    if (overallStatus === "missed_cut" || overallStatus === "withdrawn") {
+      const maxRowRound = linescores.reduce((max: number, ls: any) => Math.max(max, Number(ls.period) || 0), 0);
+      const currentRound = competition?.status?.period ?? maxRowRound + 1;
+      if (currentRound > maxRowRound) {
+        players.push({
+          espnPlayerId,
+          fullName,
+          proTeamName: null,
+          roundNumber: currentRound,
+          scoreToPar: null,
+          thru: 0,
+          status: overallStatus,
+        });
+      }
     }
   }
 
