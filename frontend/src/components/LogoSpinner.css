@@ -1,31 +1,34 @@
 /*
- * Each letter tile runs the SAME 1.5s keyframe loop, but starts at a
- * different point in it via a negative animation-delay (i * -0.25s
- * in the component) - this is the standard trick for staggering
- * identical repeating animations without writing a separate keyframe
- * per letter. The keyframe itself: pop in with an overshoot + wobble
- * (0%-33%), hold steady (33%-90%), quick fade out (90%-100%) right
- * before the loop restarts.
+ * Each letter tile runs the SAME 3.2s keyframe loop, but starts at a
+ * different point in it via a negative animation-delay (i * -0.4s in
+ * the component) - the standard trick for staggering identical
+ * repeating animations without writing a separate keyframe per
+ * letter. With a 0.4s step between 6 letters, the cascade reaches the
+ * last letter at 2.0s in; the keyframe's own pop window (0%-12%,
+ * i.e. ~0.38s of the 3.2s cycle) is sized to roughly match that step,
+ * so each letter is finishing its jump right as the next one starts -
+ * reading as a clean left-to-right wave rather than a scattered
+ * flicker or a sluggish one-at-a-time crawl.
  */
 @keyframes letter-pop-wobble {
   0% {
     opacity: 0;
     transform: scale(0.3) rotate(-18deg);
   }
-  14% {
+  5% {
     opacity: 1;
-    transform: scale(1.2) rotate(10deg);
+    transform: scale(1.22) rotate(11deg);
   }
-  20% {
-    transform: scale(0.92) rotate(-7deg);
+  7% {
+    transform: scale(0.9) rotate(-8deg);
   }
-  26% {
-    transform: scale(1.06) rotate(4deg);
+  9.5% {
+    transform: scale(1.07) rotate(4deg);
   }
-  33% {
+  12% {
     transform: scale(1) rotate(0deg);
   }
-  90% {
+  88% {
     opacity: 1;
     transform: scale(1) rotate(0deg);
   }
@@ -40,7 +43,7 @@
 }
 
 .logo-letter {
-  animation: letter-pop-wobble 1.5s ease-in-out infinite;
+  animation: letter-pop-wobble 3.2s ease-in-out infinite;
   transform-origin: center bottom;
   flex-shrink: 0;
 }

@@ -59,8 +59,8 @@ export default function LeagueHomePage() {
 
   if (loading) {
     return (
-      <Center mt="xl">
-        <LogoSpinner width={210} />
+      <Center style={{ height: "calc(100dvh - var(--app-shell-header-height, 60px) - var(--app-shell-footer-height, 64px))" }}>
+        <LogoSpinner height={56} />
       </Center>
     );
   }

@@ -1,40 +1,47 @@
 import "./LogoSpinner.css";
 
 interface LogoSpinnerProps {
-  /** Total displayed width in px - height follows the logo's ~4:1 aspect ratio. */
-  width?: number;
+  /** Height each letter is scaled to, in px - widths follow each letter's own aspect ratio. */
+  height?: number;
 }
 
-const LETTER_COUNT = 6; // J-A-M-D-O-G
+// Real individually-drawn letter art (see /public/loading-letters) -
+// each letter has its own aspect ratio, unlike the old approach which
+// sliced one wordmark image into equal-width windows.
+const LETTERS: { char: string; file: string; aspect: number }[] = [
+  { char: "J", file: "J.png", aspect: 247 / 342 },
+  { char: "A", file: "A.png", aspect: 263 / 343 },
+  { char: "M", file: "M.png", aspect: 304 / 344 },
+  { char: "D", file: "D.png", aspect: 304 / 322 },
+  { char: "O", file: "O.png", aspect: 254 / 292 },
+  { char: "G", file: "G.png", aspect: 255 / 292 },
+];
+
+// Each letter shares one keyframe (see LogoSpinner.css) but starts at
+// a different point in it via a negative animation-delay - the
+// standard trick for staggering identical repeating animations. This
+// offset controls how far apart each letter's "jump" is timed, in
+// seconds - small enough that letters visibly cascade left to right
+// as a wave, not so small that they all jump at once.
+const STEP_SECONDS = 0.4;
 
 /**
- * Loading indicator: the Jamdog logo revealed one letter at a time,
- * each popping in with a little wobble, in a continuous staggered
- * loop. Rather than slicing the logo PNG into 6 separate image files
- * (the letters overlap/touch in this hand-drawn font, so there's no
- * clean gap to cut along), each "letter" is really just an
- * overflow-hidden window onto the SAME background image, shifted via
- * background-position so it reveals roughly one letter's worth of
- * width - all 6 windows share one scaled-up copy of the source image.
+ * Loading indicator: JAMDOG's real letter art jumping in left to
+ * right, each with a little wobble, in a continuous cascading loop.
  */
-export function LogoSpinner({ width = 210 }: LogoSpinnerProps) {
-  const height = Math.round(width / 4); // source logo is ~1200x300, i.e. 4:1
-  const sliceWidth = width / LETTER_COUNT;
-
+export function LogoSpinner({ height = 56 }: LogoSpinnerProps) {
   return (
-    <div style={{ display: "flex", width, height }}>
-      {Array.from({ length: LETTER_COUNT }).map((_, i) => (
-        <div
-          key={i}
+    <div style={{ display: "flex", alignItems: "flex-end", gap: 4, height }}>
+      {LETTERS.map((letter, i) => (
+        <img
+          key={letter.char}
+          src={`/loading-letters/${letter.file}`}
+          alt={letter.char}
           className="logo-letter"
           style={{
-            width: sliceWidth,
             height,
-            backgroundImage: "url(/jamdog-logo.png)",
-            backgroundSize: `${width}px ${height}px`,
-            backgroundPosition: `-${i * sliceWidth}px 0`,
-            backgroundRepeat: "no-repeat",
-            animationDelay: `-${i * 0.25}s`,
+            width: height * letter.aspect,
+            animationDelay: `-${i * STEP_SECONDS}s`,
           }}
         />
       ))}

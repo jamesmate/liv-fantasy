@@ -24,8 +24,8 @@ export default function OverallStandingsTabPage() {
 
   if (loading) {
     return (
-      <Center mih="100%">
-        <LogoSpinner width={210} />
+      <Center style={{ height: "calc(100dvh - var(--app-shell-header-height, 60px) - var(--app-shell-footer-height, 64px))" }}>
+        <LogoSpinner height={56} />
       </Center>
     );
   }
