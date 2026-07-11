@@ -62,6 +62,14 @@ create table if not exists sessions (
 );
 create index if not exists idx_sessions_token on sessions(token);
 
+-- Carry forward everyone's CURRENTLY valid token into the new table,
+-- so this migration doesn't force-logout the whole league. Safe to
+-- re-run - "on conflict do nothing" skips tokens already carried over.
+insert into sessions (member_id, token)
+select id, session_token from members
+where session_token is not null
+on conflict (token) do nothing;
+
 -- session_token on members is no longer written to or read from for
 -- auth (sessions table above replaces it) - loosened rather than
 -- dropped, so this migration stays additive-only and reversible.

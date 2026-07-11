@@ -4,6 +4,7 @@ import { requireMember, requireOwner } from "../middleware/auth";
 import { finalizeTournamentResults, overrideTournamentWin, ResultsError } from "../services/tournamentResults";
 import { syncTournamentScores } from "../services/scoreSync";
 import { getLeaderboard } from "../adapters/espnGolf";
+import { hashPasscode } from "../utils/passcode";
 import DEFAULT_ROSTER from "../data/andalucia-roster.json";
 import ANDALUCIA_ROUND_1_SCORES from "../data/andalucia-round1-scores.json";
 import ANDALUCIA_ROUND_2_SCORES from "../data/andalucia-round2-scores.json";
@@ -614,4 +615,33 @@ adminRouter.get("/tournaments/:id/players", async (req, res) => {
     [req.params.id, req.member!.leagueId]
   );
   res.json(result.rows);
+});
+
+// POST /admin/members/:memberId/passcode  { passcode }
+// Owner-only escape hatch: lets the league owner set (or reset) ANY
+// teammate's passcode, not just their own. Needed because a member
+// who never set their own passcode has no way to prove it's them if
+// their session ever dies (e.g. after a backend migration invalidates
+// old tokens) - normally /leagues/passcode requires already being
+// logged in, which is exactly what they've lost. The owner can run
+// this, then tell that person the passcode out of band (text, chat,
+// in person) so they can log back in via /leagues/login.
+adminRouter.post("/members/:memberId/passcode", async (req, res) => {
+  const { passcode } = req.body;
+  if (!passcode || typeof passcode !== "string" || passcode.length < 4) {
+    return res.status(400).json({ error: "Passcode must be at least 4 characters." });
+  }
+
+  const member = await query<{ id: string; team_name: string }>(
+    `select id, team_name from members where id = $1 and league_id = $2`,
+    [req.params.memberId, req.member!.leagueId]
+  );
+  if (member.rows.length === 0) {
+    return res.status(404).json({ error: "No member with that id in this league." });
+  }
+
+  const passcodeHash = hashPasscode(passcode);
+  await query(`update members set passcode_hash = $1 where id = $2`, [passcodeHash, req.params.memberId]);
+
+  res.json({ success: true, teamName: member.rows[0].team_name });
 });
