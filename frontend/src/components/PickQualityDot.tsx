@@ -19,7 +19,7 @@ export function getScoreColor(magnitude: number): string {
 // achievable with a single CSS `outline`, which only supports one) is
 // why a double-ringed dot is built from two nested wrapper divs rather
 // than one - each contributes its own ring at its own gap.
-export const RING_WIDTH = 1;
+export const RING_WIDTH = 0.5; // thinnest value that reliably still renders - 0px would make the ring disappear entirely
 export const RING1_GAP = 1; // gap between the filled circle and the pick ring
 export const RING2_GAP = 1; // gap between ring 1 and the double-play ring (measured from ring 1's outer edge)
 

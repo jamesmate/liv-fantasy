@@ -19,21 +19,23 @@ interface TeamTimingSummaryProps {
  * skipped here since every dot already represents an actual pick, but
  * the Double Play ring and best-in-field star still apply.
  */
-export function TeamTimingSummary({ team, variant = "light", size = 16, gap = 3 }: TeamTimingSummaryProps) {
+export function TeamTimingSummary({ team, variant = "light", size = 16, gap = 2 }: TeamTimingSummaryProps) {
   const dots = team.rounds.flatMap((round) =>
-    round.picks.map((pick) => {
-      const own = pick.playerRoundScores;
-      const thisRound = own.find((r) => r.roundNumber === round.roundNumber);
-      const siblingMagnitudes = own.map((r) => r.scoreToPar - (r.fieldAvg ?? 0));
-      return {
-        key: `${round.roundNumber}-${pick.playerName}`,
-        scoreToPar: pick.scoreToPar,
-        fieldAvg: thisRound?.fieldAvg ?? null,
-        fieldBest: thisRound?.fieldBest ?? null,
-        siblingMagnitudes: siblingMagnitudes.length > 0 ? siblingMagnitudes : [0],
-        hasDoublePlay: pick.hasDoublePlay,
-      };
-    })
+    round.picks
+      .filter((pick) => pick.status === "completed")
+      .map((pick) => {
+        const own = pick.playerRoundScores;
+        const thisRound = own.find((r) => r.roundNumber === round.roundNumber);
+        const siblingMagnitudes = own.map((r) => r.scoreToPar - (r.fieldAvg ?? 0));
+        return {
+          key: `${round.roundNumber}-${pick.playerName}`,
+          scoreToPar: pick.scoreToPar,
+          fieldAvg: thisRound?.fieldAvg ?? null,
+          fieldBest: thisRound?.fieldBest ?? null,
+          siblingMagnitudes: siblingMagnitudes.length > 0 ? siblingMagnitudes : [0],
+          hasDoublePlay: pick.hasDoublePlay,
+        };
+      })
   );
 
   if (dots.length === 0) return null;
