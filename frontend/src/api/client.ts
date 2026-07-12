@@ -138,6 +138,9 @@ export interface LeaderboardRoundPick {
   scoreToPar: number;
   hasDoublePlay: boolean;
   status: string;
+  playerRoundScores: { roundNumber: number; scoreToPar: number }[];
+  timingRank: number | null;
+  timingOf: number | null;
 }
 
 export interface LeaderboardRound {
@@ -153,6 +156,9 @@ export interface LeaderboardTeam {
   displayName: string;
   rounds: LeaderboardRound[];
   overallTotal: number;
+  timingScore: number | null;
+  timingScoreQualifyingPicks: number;
+  totalPicksMade: number;
 }
 
 export interface LeaderboardResponse {

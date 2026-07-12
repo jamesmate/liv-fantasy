@@ -14,6 +14,7 @@ import { IconChevronDown, IconChevronUp, IconBolt } from "@tabler/icons-react";
 import { api, LeaderboardResponse, LeaderboardTeam } from "../api/client";
 import { getCountryFlagUrl } from "../utils/countryFlags";
 import { LoadingIndicator } from "../components/LoadingIndicator";
+import { RoundSparkline } from "../components/RoundSparkline";
 
 function formatToPar(n: number | null): string {
   if (n === null) return "-";
@@ -228,6 +229,11 @@ function TeamRow({
                               </Text>
                             )}
                           </Text>
+                          <RoundSparkline
+                            roundScores={pick.playerRoundScores}
+                            highlightRound={round.roundNumber}
+                            variant="light"
+                          />
                           {pick.hasDoublePlay && (
                             <IconBolt size={12} color="var(--mantine-color-tangerine-6)" />
                           )}
@@ -257,6 +263,25 @@ function TeamRow({
               )}
             </Box>
           ))}
+
+          {team.timingScoreQualifyingPicks >= 2 && (
+            <Group justify="space-between" mt="sm" pt="sm" pl="xs" style={{ borderTop: "1px solid var(--mantine-color-forest-2)" }}>
+              <Group gap={4}>
+                <IconBolt size={14} color="var(--mantine-color-tangerine-6)" />
+                <Text size="xs" fw={700} c="forest.6">
+                  Timing Score
+                </Text>
+              </Group>
+              <Group gap={6}>
+                <Text size="sm" fw={700} c={team.timingScore! >= 50 ? "mint.7" : "coral.6"}>
+                  {team.timingScore}%
+                </Text>
+                <Text size="10px" c="forest.4">
+                  ({team.timingScoreQualifyingPicks} of {team.totalPicksMade} picks scored)
+                </Text>
+              </Group>
+            </Group>
+          )}
         </Box>
       </Collapse>
     </Box>

@@ -1,11 +1,14 @@
 import { Group, Text, Stack, Box } from "@mantine/core";
 import { AnimatedGolferSprite } from "./sprites/AnimatedGolferSprite";
+import { RoundSparkline } from "./RoundSparkline";
 
 interface LineupSlot {
   id: string;
   name: string;
   scoreToPar?: number | null; // shown below the sprite once the round is locked/scored
   hasDoublePlay?: boolean;
+  roundScores?: { roundNumber: number; scoreToPar: number }[];
+  currentRoundNumber?: number;
 }
 
 interface SelectedLineupProps {
@@ -150,6 +153,15 @@ export function SelectedLineup({
                   {formatToPar(slot.scoreToPar)}
                   {slot.hasDoublePlay ? " ⚡" : ""}
                 </Text>
+              )}
+              {slot && slot.roundScores && slot.roundScores.length > 1 && (
+                <RoundSparkline
+                  roundScores={slot.roundScores}
+                  highlightRound={slot.currentRoundNumber}
+                  variant="dark"
+                  width={50}
+                  height={16}
+                />
               )}
             </Stack>
           );

@@ -264,6 +264,7 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
   const picks = await query<{
     member_id: string;
     round_number: number;
+    tournament_player_id: string;
     player_name: string;
     pro_team_name: string | null;
     country_code: string | null;
@@ -271,13 +272,56 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
     has_double_play: boolean;
     player_status: string;
   }>(
-    `select member_id, round_number, player_name, pro_team_name, country_code,
+    `select member_id, round_number, tournament_player_id, player_name, pro_team_name, country_code,
             score_to_par, has_double_play, player_status
        from pick_scores
       where tournament_id = $1
       order by round_number asc`,
     [tournamentId]
   );
+
+  // Every played round for every player who's been picked at least
+  // once - used both for the sparklines (full round-by-round line)
+  // and for computing "was this the round they were picked for their
+  // best round, or their worst" (see timingRank below). Deliberately
+  // NOT scoped to only the specific round each pick was for - we need
+  // each player's OTHER rounds too, to know where the picked one
+  // ranks among them.
+  const playerRounds = await query<{ tournament_player_id: string; round_number: number; score_to_par: number }>(
+    `select prs.tournament_player_id, r.round_number, prs.score_to_par
+       from player_round_scores prs
+       join rounds r on r.id = prs.round_id
+      where r.tournament_id = $1
+        and prs.score_to_par is not null
+        and prs.tournament_player_id in (
+          select distinct p.tournament_player_id
+            from picks p
+            join rounds r2 on r2.id = p.round_id
+           where r2.tournament_id = $1
+        )
+      order by r.round_number asc`,
+    [tournamentId]
+  );
+  const roundsByPlayer = new Map<string, { roundNumber: number; scoreToPar: number }[]>();
+  for (const row of playerRounds.rows) {
+    const list = roundsByPlayer.get(row.tournament_player_id) ?? [];
+    list.push({ roundNumber: row.round_number, scoreToPar: row.score_to_par });
+    roundsByPlayer.set(row.tournament_player_id, list);
+  }
+
+  // For a single pick, where does the round it was made for rank
+  // among that SAME player's other rounds (1 = their best round of
+  // the tournament so far, higher = worse)? Only meaningful once the
+  // player has 2+ rounds played - with just one round there's nothing
+  // to compare it against, so timingRank is null until then.
+  function getTimingRank(tournamentPlayerId: string, roundNumber: number): { rank: number; of: number } | null {
+    const rounds = roundsByPlayer.get(tournamentPlayerId);
+    if (!rounds || rounds.length < 2) return null;
+    const sorted = [...rounds].sort((a, b) => a.scoreToPar - b.scoreToPar);
+    const rank = sorted.findIndex((r) => r.roundNumber === roundNumber) + 1;
+    if (rank === 0) return null; // this round's score isn't in yet
+    return { rank, of: rounds.length };
+  }
 
   const result = teams.rows.map((team) => {
     const teamRoundTotals = roundTotals.rows.filter((r) => r.member_id === team.member_id);
@@ -291,18 +335,50 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
         roundNumber,
         total: totalRow?.round_total ?? null,
         fullyScored: totalRow?.round_fully_scored ?? false,
-        picks: roundPicks.map((p) => ({
-          playerName: p.player_name,
-          proTeamName: p.pro_team_name,
-          countryCode: p.country_code,
-          scoreToPar: p.score_to_par,
-          hasDoublePlay: p.has_double_play,
-          status: p.player_status,
-        })),
+        picks: roundPicks.map((p) => {
+          const timing = getTimingRank(p.tournament_player_id, p.round_number);
+          return {
+            playerName: p.player_name,
+            proTeamName: p.pro_team_name,
+            countryCode: p.country_code,
+            scoreToPar: p.score_to_par,
+            hasDoublePlay: p.has_double_play,
+            status: p.player_status,
+            // Full round-by-round line for this player, for the
+            // sparkline - empty/short until they've played enough to
+            // be worth graphing.
+            playerRoundScores: roundsByPlayer.get(p.tournament_player_id) ?? [],
+            // Where this specific pick's round ranked among that
+            // player's OWN rounds (1 = best) - null until that player
+            // has 2+ rounds in, per the "not meaningful with only one
+            // data point" reasoning.
+            timingRank: timing?.rank ?? null,
+            timingOf: timing?.of ?? null,
+          };
+        }),
       };
     });
 
     const overallTotal = teamRoundTotals.reduce((sum, r) => sum + Number(r.round_total), 0);
+
+    // Aggregate "Timing Score": average, across every pick that has a
+    // meaningful timingRank (player had 2+ rounds), of how close to
+    // "their best round" the pick landed - 100% = every pick captured
+    // that player's single best round, 0% = every pick landed on
+    // their worst. Only worth displaying once there are at least 2
+    // qualifying picks (see rationale in the pick_scores comment
+    // above) - the frontend decides the display threshold, but we
+    // still tell it exactly how many qualify so it can show "(2 of 4
+    // picks scored)" style context either way.
+    const qualifyingPicks = teamPicks
+      .map((p) => getTimingRank(p.tournament_player_id, p.round_number))
+      .filter((t): t is { rank: number; of: number } => t !== null && t.of > 1);
+    const timingScore =
+      qualifyingPicks.length > 0
+        ? Math.round(
+            (qualifyingPicks.reduce((sum, t) => sum + (t.of - t.rank) / (t.of - 1), 0) / qualifyingPicks.length) * 100
+          )
+        : null;
 
     return {
       memberId: team.member_id,
@@ -310,6 +386,9 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
       displayName: team.display_name,
       rounds,
       overallTotal,
+      timingScore,
+      timingScoreQualifyingPicks: qualifyingPicks.length,
+      totalPicksMade: teamPicks.length,
     };
   });
 
