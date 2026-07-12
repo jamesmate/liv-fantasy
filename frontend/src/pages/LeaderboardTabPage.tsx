@@ -23,6 +23,24 @@ function formatToPar(n: number | null): string {
   return n > 0 ? `+${n}` : `${n}`;
 }
 
+// Red-neutral-green gradient for a 0-100 percentage (Pick IQ), same
+// visual language as the score gradients elsewhere in the app, just
+// scaled for a percent instead of a golf score.
+function getPercentColor(percent: number): string {
+  const clamped = Math.max(0, Math.min(100, percent));
+  const deepRed: [number, number, number] = [150, 24, 24];
+  const neutral: [number, number, number] = [230, 227, 218];
+  const deepGreen: [number, number, number] = [22, 120, 62];
+  const [from, to, t] =
+    clamped <= 50 ? [deepRed, neutral, clamped / 50] : [neutral, deepGreen, (clamped - 50) / 50];
+  const [r, g, b] = from.map((c, i) => Math.round(c + (to[i] - c) * t));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function getPercentTextColor(percent: number): string {
+  return percent > 35 && percent < 65 ? "#2b2b2b" : "#ffffff";
+}
+
 export default function LeaderboardTabPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
   const [data, setData] = useState<LeaderboardResponse | null>(null);
@@ -279,25 +297,33 @@ function TeamRow({
 
           {team.timingScoreQualifyingPicks >= 2 && (
             <Box mt="sm" pt="sm" pl="xs" style={{ borderTop: "1px solid var(--mantine-color-forest-2)" }}>
-              <Group justify="space-between">
-                <Group gap={4}>
-                  <IconBolt size={14} color="var(--mantine-color-tangerine-6)" />
-                  <Text size="xs" fw={700} c="forest.2">
-                    Timing Score
-                  </Text>
-                </Group>
-                <Group gap={6}>
-                  <Text size="sm" fw={700} c={team.timingScore! >= 50 ? "mint.7" : "coral.6"}>
+              <Group gap="sm" wrap="nowrap" align="center">
+                <Box
+                  style={{
+                    backgroundColor: getPercentColor(team.timingScore!),
+                    color: getPercentTextColor(team.timingScore!),
+                    borderRadius: 12,
+                    width: 56,
+                    height: 56,
+                    flexShrink: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Text size="lg" fw={800}>
                     {team.timingScore}%
                   </Text>
-                  <Text size="10px" c="forest.3">
-                    ({team.timingScoreQualifyingPicks} of {team.totalPicksMade} picks scored)
+                </Box>
+                <Box style={{ flex: 1 }}>
+                  <Text size="xs" fw={700} c="forest.2">
+                    Pick IQ
                   </Text>
-                </Group>
+                  <Text size="10px" c="forest.3" mt={2}>
+                    How sharp your picks were - catching players right as they got hot.
+                  </Text>
+                </Box>
               </Group>
-              <Text size="10px" c="forest.3" mt={2}>
-                Adjusted for how tough each day played for the whole field, not just raw scores.
-              </Text>
             </Box>
           )}
         </Box>
