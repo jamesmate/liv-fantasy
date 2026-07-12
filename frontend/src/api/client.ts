@@ -161,6 +161,13 @@ export interface LeaderboardTeam {
   totalPicksMade: number;
 }
 
+export interface Headline {
+  id: string;
+  text: string;
+  emoji: string;
+  priority: number;
+}
+
 export interface LeaderboardResponse {
   tournament: { id: string; totalRounds: number } | null;
   teams: LeaderboardTeam[];
@@ -408,6 +415,9 @@ export const api = {
 
   getLeaderboard: (leagueId: string) =>
     request<LeaderboardResponse>(`/leagues/${leagueId}/leaderboard`),
+
+  getHeadlines: (leagueId: string) =>
+    request<{ headlines: Headline[] }>(`/leagues/${leagueId}/headlines`),
 
   getPodiumStandings: (leagueId: string) =>
     request<PodiumStanding[]>(`/leagues/${leagueId}/podium-standings`),

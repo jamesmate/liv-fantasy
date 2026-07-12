@@ -4,6 +4,7 @@ import { query } from "../db/client";
 import { requireMember } from "../middleware/auth";
 import { hashPasscode, verifyPasscode } from "../utils/passcode";
 import { maybeSync } from "../services/scoreSync";
+import { generateHeadlines } from "../services/headlines";
 
 export const leagueRouter = Router();
 
@@ -221,6 +222,23 @@ leagueRouter.get("/:id/career-standings", async (req, res) => {
     [req.params.id]
   );
   res.json(result.rows);
+});
+
+// GET /leagues/:id/headlines
+// Auto-generated news feed about this league's picks in the CURRENT
+// live round - double plays paying off/backfiring, who's leading,
+// missed-cut disasters. See services/headlines.ts for the actual
+// logic. Regenerated fresh each request, nothing stored.
+leagueRouter.get("/:id/headlines", async (req, res) => {
+  const tournament = await query<{ id: string }>(
+    `select id from tournaments where league_id = $1 order by created_at desc limit 1`,
+    [req.params.id]
+  );
+  if (tournament.rows.length === 0) {
+    return res.json({ headlines: [] });
+  }
+  const headlines = await generateHeadlines(tournament.rows[0].id);
+  res.json({ headlines });
 });
 
 // GET /leagues/:id/leaderboard

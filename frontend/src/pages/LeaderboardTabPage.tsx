@@ -16,6 +16,7 @@ import { getCountryFlagUrl } from "../utils/countryFlags";
 import { LoadingIndicator } from "../components/LoadingIndicator";
 import { RoundSparkline } from "../components/RoundSparkline";
 import { TeamTimingSummary } from "../components/TeamTimingSummary";
+import { HeadlinesFeed } from "../components/HeadlinesFeed";
 
 function formatToPar(n: number | null): string {
   if (n === null) return "-";
@@ -144,6 +145,7 @@ export default function LeaderboardTabPage() {
           });
         })()}
       </Stack>
+      {leagueId && <HeadlinesFeed leagueId={leagueId} />}
     </Box>
   );
 }
