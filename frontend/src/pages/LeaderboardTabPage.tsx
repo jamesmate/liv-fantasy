@@ -196,14 +196,14 @@ function TeamRow({
       <Collapse in={isExpanded}>
         <Box pb="sm" px="xs" style={{ background: "var(--mantine-color-forest-0)" }}>
           <Box pt="sm" pb="xs">
-            <Text size="10px" fw={700} c="forest.4" tt="uppercase" mb={4}>
+            <Text size="10px" fw={700} c="forest.3" tt="uppercase" mb={4}>
               All picks this tournament
             </Text>
             <TeamTimingSummary team={team} variant="light" />
           </Box>
           {team.rounds.map((round) => (
             <Box key={round.roundNumber} mb="xs">
-              <Text size="xs" fw={700} c="forest.6" mb={4}>
+              <Text size="xs" fw={700} c="forest.2" mb={4}>
                 Round {round.roundNumber}
                 {round.total !== null ? ` · ${formatToPar(round.total)}` : ""}
               </Text>
@@ -282,7 +282,7 @@ function TeamRow({
               <Group justify="space-between">
                 <Group gap={4}>
                   <IconBolt size={14} color="var(--mantine-color-tangerine-6)" />
-                  <Text size="xs" fw={700} c="forest.6">
+                  <Text size="xs" fw={700} c="forest.2">
                     Timing Score
                   </Text>
                 </Group>
@@ -290,12 +290,12 @@ function TeamRow({
                   <Text size="sm" fw={700} c={team.timingScore! >= 50 ? "mint.7" : "coral.6"}>
                     {team.timingScore}%
                   </Text>
-                  <Text size="10px" c="forest.4">
+                  <Text size="10px" c="forest.3">
                     ({team.timingScoreQualifyingPicks} of {team.totalPicksMade} picks scored)
                   </Text>
                 </Group>
               </Group>
-              <Text size="10px" c="forest.4" mt={2}>
+              <Text size="10px" c="forest.3" mt={2}>
                 Adjusted for how tough each day played for the whole field, not just raw scores.
               </Text>
             </Box>
