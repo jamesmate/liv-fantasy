@@ -9,6 +9,7 @@ interface RoundSparklineProps {
   roundScores: RoundScoreEntry[];
   /** Which round to ring as "the one this pick was actually for". */
   highlightRound?: number;
+  /** Fixed width/height of each round's SLOT - the actual filled circle is centered within this and may be smaller, but the slot itself (and therefore every circle's center point) never moves. */
   size?: number;
   gap?: number;
   /** "dark" for the app's dark forest-green backgrounds, "light" for the pale expanded-row background on the leaderboard. */
@@ -38,9 +39,20 @@ function getScoreColor(magnitude: number): string {
  * scoring day reads as big/vivid, and a hollow-looking -1 on a day
  * everyone shot low reads as small/faint. This is deliberately the
  * same field-adjusted logic Timing Score uses, so the two always
- * agree with each other. The round this pick was actually FOR gets a
- * ring around it. Renders nothing with fewer than 2 rounds - a single
- * round has nothing to compare itself against.
+ * agree with each other.
+ *
+ * Each round gets a fixed-size SLOT (width/height = size) with the
+ * actual filled circle centered inside it - the circle itself can be
+ * smaller than the slot, but the slot's center never moves regardless
+ * of any circle's size, so every round lines up at a constant
+ * horizontal position independent of its neighbors.
+ *
+ * The round this pick was actually FOR gets a ring - drawn on the
+ * OUTER slot, not the inner faded circle, so the ring stays at a
+ * constant opacity no matter how faint that round's own circle is.
+ *
+ * Renders nothing with fewer than 2 rounds - a single round has
+ * nothing to compare itself against.
  */
 export function RoundSparkline({
   roundScores,
@@ -61,14 +73,12 @@ export function RoundSparkline({
   const worst = Math.max(...magnitudes);
   const range = worst - best || 1;
 
-  const minScale = 0.62; // smallest circle, for their worst round
+  const minScale = 0.55; // smallest circle, for their worst round
   const maxScale = 1.0; // largest circle, for their best round
   const minOpacity = 0.5;
   const maxOpacity = 1.0;
 
   const ringColor = variant === "dark" ? "#fff" : "#1e3c2d";
-  const textColorDark = "#20291f";
-  const textColorLight = "#ffffff";
 
   return (
     <div style={{ display: "flex", alignItems: "center", gap, flexShrink: 0 }}>
@@ -81,39 +91,37 @@ export function RoundSparkline({
         const diameter = size * scale;
         const isHighlighted = r.roundNumber === highlightRound;
         const bg = getScoreColor(magnitude);
-        // Pick a readable text color against the fill - the gradient
-        // swings from pale neutral to saturated dark green/red, so a
-        // fixed text color won't read well across the whole range.
-        const textColor = quality > 0.35 && quality < 0.65 ? textColorDark : textColorLight;
 
         return (
+          // Fixed-size outer slot: this is what carries the ring
+          // (constant opacity) and what fixes this round's center
+          // position, regardless of the inner circle's own size.
           <div
             key={r.roundNumber}
             title={`Round ${r.roundNumber}`}
             style={{
-              width: diameter,
-              height: diameter,
-              borderRadius: "50%",
-              backgroundColor: bg,
-              opacity,
+              width: size,
+              height: size,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
               outline: isHighlighted ? `2px solid ${ringColor}` : "none",
               outlineOffset: isHighlighted ? 2 : 0,
+              borderRadius: "50%",
             }}
           >
-            <span
+            {/* Inner filled circle: this is what fades - opacity
+                lives here only, never on the outer ringed slot. */}
+            <div
               style={{
-                fontSize: Math.max(8, diameter * 0.42),
-                fontWeight: 700,
-                color: textColor,
-                lineHeight: 1,
+                width: diameter,
+                height: diameter,
+                borderRadius: "50%",
+                backgroundColor: bg,
+                opacity,
               }}
-            >
-              {r.scoreToPar === 0 ? "E" : r.scoreToPar > 0 ? `+${r.scoreToPar}` : r.scoreToPar}
-            </span>
+            />
           </div>
         );
       })}
