@@ -224,20 +224,20 @@ function TeamRow({
                 <TeamTimingSummary team={team} variant="light" />
               </Box>
               {team.timingScoreQualifyingPicks >= 2 && (
-                <Box style={{ flexShrink: 0 }} ta="right">
-                  <Text size="10px" fw={700} c="forest.3" tt="uppercase" mb={4}>
+                <Box style={{ flexShrink: 0 }}>
+                  <Text size="10px" fw={700} c="forest.3" tt="uppercase" mb={3}>
                     Pick IQ
                   </Text>
                   <Box
                     style={{
                       backgroundColor: getPercentColor(team.timingScore!),
                       color: getPercentTextColor(team.timingScore!),
-                      borderRadius: 10,
-                      padding: "3px 10px",
+                      borderRadius: 8,
+                      padding: "1px 7px",
                       display: "inline-block",
                     }}
                   >
-                    <Text size="lg" fw={800}>
+                    <Text size="sm" fw={800}>
                       {team.timingScore}
                     </Text>
                   </Box>
@@ -256,7 +256,7 @@ function TeamRow({
                   No picks made
                 </Text>
               ) : (
-                <Stack gap={1} pl="xs">
+                <Stack gap={0} pl="xs">
                   {round.picks.map((pick, i) => {
                     const flagUrl = getCountryFlagUrl(pick.countryCode);
                     return (
@@ -290,6 +290,8 @@ function TeamRow({
                             highlightRound={round.roundNumber}
                             highlightHasDoublePlay={pick.hasDoublePlay}
                             variant="light"
+                            size={18}
+                            gap={3}
                           />
                           {pick.hasDoublePlay && pick.status !== "completed" && (
                             <IconBolt size={12} color="var(--mantine-color-tangerine-6)" />
