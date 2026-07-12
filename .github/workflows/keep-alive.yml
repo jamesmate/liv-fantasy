@@ -1,0 +1,25 @@
+name: Keep backend awake
+
+# Render's free tier puts the backend to sleep after ~15 minutes with
+# no traffic. When it's asleep, the in-process score sync loop
+# (setInterval in backend/src/index.ts) isn't running either, so
+# scores stop updating until someone happens to load the app and wake
+# it back up.
+#
+# This workflow pings /health every 10 minutes - comfortably under
+# the 15 minute sleep threshold - so the backend (and its sync loop)
+# stays running continuously, without needing anyone to remember to
+# open the app or manually call /sync-now.
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"
+  workflow_dispatch: {} # lets you trigger it manually from the Actions tab too
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping backend health endpoint
+        run: |
+          curl -sf https://liv-fantasy.onrender.com/health || echo "Ping failed (backend may be cold-starting - next scheduled run will retry)"
