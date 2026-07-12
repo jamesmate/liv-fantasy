@@ -161,6 +161,20 @@ export interface LeaderboardTeam {
   totalPicksMade: number;
 }
 
+export interface RecapAward {
+  id: string;
+  emoji: string;
+  title: string;
+  description: string;
+}
+
+export interface TournamentRecap {
+  available: boolean;
+  tournamentName?: string;
+  champion?: { teamName: string; total: number };
+  awards: RecapAward[];
+}
+
 export interface Headline {
   id: string;
   text: string;
@@ -418,6 +432,8 @@ export const api = {
 
   getHeadlines: (leagueId: string) =>
     request<{ headlines: Headline[] }>(`/leagues/${leagueId}/headlines`),
+
+  getRecap: (leagueId: string) => request<TournamentRecap>(`/leagues/${leagueId}/recap`),
 
   getPodiumStandings: (leagueId: string) =>
     request<PodiumStanding[]>(`/leagues/${leagueId}/podium-standings`),

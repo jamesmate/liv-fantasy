@@ -5,6 +5,7 @@ import { requireMember } from "../middleware/auth";
 import { hashPasscode, verifyPasscode } from "../utils/passcode";
 import { maybeSync } from "../services/scoreSync";
 import { generateHeadlines } from "../services/headlines";
+import { generateRecap } from "../services/recap";
 
 export const leagueRouter = Router();
 
@@ -239,6 +240,14 @@ leagueRouter.get("/:id/headlines", async (req, res) => {
   }
   const headlines = await generateHeadlines(tournament.rows[0].id);
   res.json({ headlines });
+});
+
+// GET /leagues/:id/recap
+// "Awards ceremony" for the most recent tournament, only populated
+// once it's marked completed - see services/recap.ts.
+leagueRouter.get("/:id/recap", async (req, res) => {
+  const recap = await generateRecap(req.params.id);
+  res.json(recap);
 });
 
 // GET /leagues/:id/leaderboard

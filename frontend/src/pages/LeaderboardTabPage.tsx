@@ -19,6 +19,7 @@ import { LoadingIndicator } from "../components/LoadingIndicator";
 import { RoundSparkline } from "../components/RoundSparkline";
 import { TeamTimingSummary } from "../components/TeamTimingSummary";
 import { HeadlinesFeed } from "../components/HeadlinesFeed";
+import { TournamentRecap } from "../components/TournamentRecap";
 
 function formatToPar(n: number | null): string {
   if (n === null) return "-";
@@ -95,6 +96,7 @@ export default function LeaderboardTabPage() {
 
   return (
     <Box p="md">
+      {leagueId && <TournamentRecap leagueId={leagueId} />}
       <Stack gap={0}>
         {/* Header row */}
         <Group
