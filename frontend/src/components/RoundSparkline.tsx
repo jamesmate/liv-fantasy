@@ -1,4 +1,4 @@
-import { IconTrophy } from "@tabler/icons-react";
+import { IconStarFilled } from "@tabler/icons-react";
 
 interface RoundScoreEntry {
   roundNumber: number;
@@ -114,7 +114,7 @@ export function RoundSparkline({
         // one, just with progressively larger outline-offsets, so
         // they sit as genuinely separate concentric rings rather than
         // one thick one.
-        const trophySize = Math.max(8, diameter * 0.55);
+        const starSize = Math.max(8, diameter * 0.55);
 
         const circle = (
           <div
@@ -129,7 +129,7 @@ export function RoundSparkline({
               justifyContent: "center",
             }}
           >
-            {isFieldBest && <IconTrophy size={trophySize} color="#fff" strokeWidth={2.5} />}
+            {isFieldBest && <IconStarFilled size={starSize} color="#fff" />}
           </div>
         );
 
