@@ -247,7 +247,7 @@ function TeamRow({
                             highlightHasDoublePlay={pick.hasDoublePlay}
                             variant="light"
                           />
-                          {pick.hasDoublePlay && (
+                          {pick.hasDoublePlay && pick.status !== "completed" && (
                             <IconBolt size={12} color="var(--mantine-color-tangerine-6)" />
                           )}
                           {pick.status === "withdrawn" && (

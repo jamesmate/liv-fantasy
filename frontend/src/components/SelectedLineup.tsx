@@ -7,6 +7,7 @@ interface LineupSlot {
   name: string;
   scoreToPar?: number | null; // shown below the sprite once the round is locked/scored
   hasDoublePlay?: boolean;
+  isCompleted?: boolean;
   roundScores?: { roundNumber: number; scoreToPar: number; fieldAvg?: number | null; fieldBest?: number | null }[];
   currentRoundNumber?: number;
 }
@@ -151,7 +152,7 @@ export function SelectedLineup({
                   }}
                 >
                   {formatToPar(slot.scoreToPar)}
-                  {slot.hasDoublePlay ? " ⚡" : ""}
+                  {slot.hasDoublePlay && !slot.isCompleted ? " ⚡" : ""}
                 </Text>
               )}
               {slot && slot.roundScores && slot.roundScores.length > 1 && (

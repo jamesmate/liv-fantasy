@@ -46,6 +46,19 @@ function formatToPar(totalToPar: number | null): string {
   return totalToPar > 0 ? `+${totalToPar}` : `${totalToPar}`;
 }
 
+// Mirrors the backend's apply_double_play() SQL function exactly -
+// needed here because the lineup zone must reflect the LIVE (possibly
+// unsaved) double play toggle instantly, but the backend's
+// effective_score_to_par only reflects whatever was last actually
+// saved. Without this, toggling the bolt icon before hitting save
+// would show the un-doubled score until the next save/reload, even
+// though the ring/pose already updated live.
+function applyDoublePlay(score: number): number {
+  if (score < 0) return score * 2;
+  if (score > 0) return Math.ceil(score / 2);
+  return 0;
+}
+
 // Diverging red-to-green gradient for a single round's score, used on
 // the small per-round chips in the pick list. Deep green for a very
 // good round, a light neutral tone right around even par, deep red
@@ -269,14 +282,20 @@ export default function PickTabPage() {
   const lineupSlots = selected.map((id) => {
     const p = players.find((pl) => pl.id === id);
     const scored = scoredPicks.find((sp) => sp.tournament_player_id === id);
+    // Live selection (before saving) takes priority over the saved
+    // flag from a previous save - see applyDoublePlay() comment for
+    // why the score itself must be recomputed here too, not just the
+    // ring/pose.
+    const liveHasDoublePlay = doublePlayId === id || !!scored?.has_double_play;
+    const rawScore = scored?.score_to_par;
+    const scoreToPar =
+      rawScore === undefined ? undefined : liveHasDoublePlay ? applyDoublePlay(rawScore) : rawScore;
     return {
       id,
       name: p?.full_name ?? scored?.player_name ?? "?",
-      scoreToPar: scored?.effective_score_to_par,
-      // Live selection (before saving) takes priority over the saved
-      // flag from a previous save, so the club pose swaps in the
-      // moment someone taps the bolt icon, not just after it's saved.
-      hasDoublePlay: doublePlayId === id || !!scored?.has_double_play,
+      scoreToPar,
+      hasDoublePlay: liveHasDoublePlay,
+      isCompleted: scored?.player_status === "completed",
       roundScores: p?.round_scores.map((rs) => ({
         roundNumber: rs.round_number,
         scoreToPar: rs.score_to_par,
