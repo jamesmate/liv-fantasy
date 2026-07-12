@@ -265,22 +265,27 @@ function TeamRow({
           ))}
 
           {team.timingScoreQualifyingPicks >= 2 && (
-            <Group justify="space-between" mt="sm" pt="sm" pl="xs" style={{ borderTop: "1px solid var(--mantine-color-forest-2)" }}>
-              <Group gap={4}>
-                <IconBolt size={14} color="var(--mantine-color-tangerine-6)" />
-                <Text size="xs" fw={700} c="forest.6">
-                  Timing Score
-                </Text>
+            <Box mt="sm" pt="sm" pl="xs" style={{ borderTop: "1px solid var(--mantine-color-forest-2)" }}>
+              <Group justify="space-between">
+                <Group gap={4}>
+                  <IconBolt size={14} color="var(--mantine-color-tangerine-6)" />
+                  <Text size="xs" fw={700} c="forest.6">
+                    Timing Score
+                  </Text>
+                </Group>
+                <Group gap={6}>
+                  <Text size="sm" fw={700} c={team.timingScore! >= 50 ? "mint.7" : "coral.6"}>
+                    {team.timingScore}%
+                  </Text>
+                  <Text size="10px" c="forest.4">
+                    ({team.timingScoreQualifyingPicks} of {team.totalPicksMade} picks scored)
+                  </Text>
+                </Group>
               </Group>
-              <Group gap={6}>
-                <Text size="sm" fw={700} c={team.timingScore! >= 50 ? "mint.7" : "coral.6"}>
-                  {team.timingScore}%
-                </Text>
-                <Text size="10px" c="forest.4">
-                  ({team.timingScoreQualifyingPicks} of {team.totalPicksMade} picks scored)
-                </Text>
-              </Group>
-            </Group>
+              <Text size="10px" c="forest.4" mt={2}>
+                Adjusted for how tough each day played for the whole field, not just raw scores.
+              </Text>
+            </Box>
           )}
         </Box>
       </Collapse>

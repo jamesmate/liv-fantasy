@@ -309,6 +309,28 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
     roundsByPlayer.set(row.tournament_player_id, list);
   }
 
+  // Field average score for each round - the WHOLE field that played
+  // it, not just picked players. Used to tell "genuinely a good/bad
+  // round" apart from "the course played hard/easy that day": a +3 on
+  // a day the field averaged +5 is actually a strong relative
+  // performance, even though a raw -1 on an easy day looks better on
+  // paper. Comparing a player's rounds to EACH OTHER using raw scores
+  // (the original version of this feature) would rank that +3 as
+  // their worst round even though it may have been their sharpest
+  // relative to the conditions everyone else was facing that day.
+  const fieldAverages = await query<{ round_number: number; field_avg: string }>(
+    `select r.round_number, avg(prs.score_to_par) as field_avg
+       from player_round_scores prs
+       join rounds r on r.id = prs.round_id
+      where r.tournament_id = $1
+        and prs.score_to_par is not null
+      group by r.round_number`,
+    [tournamentId]
+  );
+  const fieldAvgByRound = new Map<number, number>(
+    fieldAverages.rows.map((r) => [r.round_number, Number(r.field_avg)])
+  );
+
   // For a single pick, where does the round it was made for rank
   // among that SAME player's other rounds (1 = their best round of
   // the tournament so far, higher = worse)? Only meaningful once the
@@ -317,7 +339,12 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
   function getTimingRank(tournamentPlayerId: string, roundNumber: number): { rank: number; of: number } | null {
     const rounds = roundsByPlayer.get(tournamentPlayerId);
     if (!rounds || rounds.length < 2) return null;
-    const sorted = [...rounds].sort((a, b) => a.scoreToPar - b.scoreToPar);
+    // Field-adjusted: how much better/worse than that day's field
+    // average this round was, not the raw score - see comment above
+    // fieldAvgByRound for why.
+    const adjusted = (r: { roundNumber: number; scoreToPar: number }) =>
+      r.scoreToPar - (fieldAvgByRound.get(r.roundNumber) ?? 0);
+    const sorted = [...rounds].sort((a, b) => adjusted(a) - adjusted(b));
     const rank = sorted.findIndex((r) => r.roundNumber === roundNumber) + 1;
     if (rank === 0) return null; // this round's score isn't in yet
     return { rank, of: rounds.length };
