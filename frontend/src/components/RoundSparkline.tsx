@@ -100,7 +100,8 @@ export function RoundSparkline({
               alignItems: "center",
               justifyContent: "center",
               flexShrink: 0,
-              boxShadow: isHighlighted ? `0 0 0 2px ${ringColor}` : "none",
+              outline: isHighlighted ? `2px solid ${ringColor}` : "none",
+              outlineOffset: isHighlighted ? 2 : 0,
             }}
           >
             <span

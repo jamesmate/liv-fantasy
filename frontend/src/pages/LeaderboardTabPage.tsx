@@ -220,7 +220,12 @@ function TeamRow({
                               style={{ borderRadius: 2, flexShrink: 0 }}
                             />
                           )}
-                          <Text size="xs" c="forest.8" lineClamp={1}>
+                          <Text
+                            size="xs"
+                            c="forest.8"
+                            lineClamp={1}
+                            style={{ width: 92, flexShrink: 0 }}
+                          >
                             {pick.playerName}
                             {pick.proTeamName && (
                               <Text span c="forest.3">
