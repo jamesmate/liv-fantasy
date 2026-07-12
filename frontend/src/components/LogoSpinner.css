@@ -1,11 +1,12 @@
 /*
- * Each letter tile runs the SAME 1.32s keyframe loop, but starts at a
- * different point in it via a negative animation-delay (i * -0.22s in
- * the component) - the standard trick for staggering identical
- * repeating animations. 6 letters * 0.22s step = exactly one full
- * 1.32s cycle, so the "big bounce" below reaches letter 6 right as
- * letter 1's next lap is about to begin - a continuous wave with no
- * dead gap.
+ * Each letter tile runs the SAME 1.32s keyframe loop, but starts
+ * STEP_SECONDS (0.22s) later than the previous one via a POSITIVE
+ * animation-delay set in the component - this keeps the six letters
+ * permanently 0.22s apart in phase, on every single loop forever, so
+ * the bounce travels left to right consistently rather than just on
+ * the first pass. 6 letters * 0.22s step = exactly one full 1.32s
+ * cycle, so the "big bounce" reaches letter 6 right as letter 1's
+ * next lap is about to begin - a continuous wave with no dead gap.
  *
  * Two things this deliberately does differently from the first pass:
  *   1. opacity stays at 1 for the ENTIRE keyframe - nothing ever

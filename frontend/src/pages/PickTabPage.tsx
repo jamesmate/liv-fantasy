@@ -38,7 +38,7 @@ import {
 import { SelectedLineup } from "../components/SelectedLineup";
 import { PixelGolferSprite } from "../components/sprites/PixelGolferSprite";
 import { getCountryFlagUrl } from "../utils/countryFlags";
-import { LogoSpinner } from "../components/LogoSpinner";
+import { LoadingIndicator } from "../components/LoadingIndicator";
 
 function formatToPar(totalToPar: number | null): string {
   if (totalToPar === null) return "-";
@@ -297,7 +297,7 @@ export default function PickTabPage() {
   if (loadingTournament) {
     return (
       <Center style={{ height: "calc(100dvh - var(--app-shell-header-height, 60px) - var(--app-shell-footer-height, 64px))" }}>
-        <LogoSpinner height={56} />
+        <LoadingIndicator />
       </Center>
     );
   }

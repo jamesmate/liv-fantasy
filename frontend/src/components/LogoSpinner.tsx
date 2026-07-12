@@ -17,13 +17,12 @@ const LETTERS: { char: string; file: string; aspect: number }[] = [
   { char: "G", file: "G.png", aspect: 255 / 292 },
 ];
 
-// Each letter shares one keyframe (see LogoSpinner.css) but starts at
-// a different point in it via a negative animation-delay - the
-// standard trick for staggering identical repeating animations. This
-// offset controls how far apart each letter's "big" bounce lands, in
-// seconds - matched to the keyframe's own bounce-window length so the
-// bounce visibly travels left to right with no dead gap between one
-// letter settling and the next starting.
+// Each letter shares one keyframe (see LogoSpinner.css) but starts
+// STEP_SECONDS later than the one before it, so the "big" bounce
+// visibly travels left to right and - critically - keeps doing so on
+// every loop, not just the first pass (see the comment at the actual
+// delay below for why positive delay, not negative, is what makes
+// that true).
 const STEP_SECONDS = 0.22;
 
 /**
@@ -42,7 +41,15 @@ export function LogoSpinner({ height = 56 }: LogoSpinnerProps) {
           style={{
             height,
             width: height * letter.aspect,
-            animationDelay: `-${i * STEP_SECONDS}s`,
+            // Positive delay (not negative) - each letter's start is
+            // pushed back by its position, then all six loop forever
+            // at the same period, so the left-to-right order holds
+            // on every lap, not just the first. A negative delay here
+            // would make each letter act as if its clock already ran
+            // ahead by that amount, which flips the visual order to
+            // right-to-left after letter one - that was the original
+            // bug.
+            animationDelay: `${i * STEP_SECONDS}s`,
           }}
         />
       ))}

@@ -14,7 +14,7 @@ import {
   Tooltip,
   Alert,
 } from "@mantine/core";
-import { LogoSpinner } from "../components/LogoSpinner";
+import { LoadingIndicator } from "../components/LoadingIndicator";
 import {
   IconChartBar,
   IconGolf,
@@ -60,7 +60,7 @@ export default function LeagueHomePage() {
   if (loading) {
     return (
       <Center style={{ height: "calc(100dvh - var(--app-shell-header-height, 60px) - var(--app-shell-footer-height, 64px))" }}>
-        <LogoSpinner height={56} />
+        <LoadingIndicator />
       </Center>
     );
   }

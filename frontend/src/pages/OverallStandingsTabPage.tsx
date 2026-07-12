@@ -3,7 +3,7 @@ import { useParams } from "react-router-dom";
 import { Box, Text, Stack, Group, Center } from "@mantine/core";
 import { IconMedal } from "@tabler/icons-react";
 import { api, PodiumStanding } from "../api/client";
-import { LogoSpinner } from "../components/LogoSpinner";
+import { LoadingIndicator } from "../components/LoadingIndicator";
 
 const MEDAL_COLORS = ["#d4af37", "#a8a8a8", "#b08d57"]; // gold, silver, bronze
 
@@ -25,7 +25,7 @@ export default function OverallStandingsTabPage() {
   if (loading) {
     return (
       <Center style={{ height: "calc(100dvh - var(--app-shell-header-height, 60px) - var(--app-shell-footer-height, 64px))" }}>
-        <LogoSpinner height={56} />
+        <LoadingIndicator />
       </Center>
     );
   }
