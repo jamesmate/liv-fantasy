@@ -6,6 +6,25 @@ import { adminRouter } from "./routes/admin";
 import { query } from "./db/client";
 import { syncTournamentScores } from "./services/scoreSync";
 
+// Safety net: Express 4 doesn't automatically catch errors thrown
+// inside async route handlers, and Node's default behavior since v15
+// is to TERMINATE THE WHOLE PROCESS on any unhandled promise
+// rejection. In a codebase with many `async (req, res) => { await
+// query(...) }` handlers that aren't individually wrapped in
+// try/catch, that means a single unexpected DB hiccup on ANY route
+// could crash the entire backend and put it into a restart loop -
+// taking down every other in-flight request and every other user
+// with it, not just the one request that failed. Logging instead of
+// exiting here means a bad request fails on its own (the client sees
+// a hung/failed request, or Express's default error handler kicks in
+// for that one request) without bringing the whole server down.
+process.on("unhandledRejection", (reason) => {
+  console.error("[unhandledRejection] - server staying up, but check this:", reason);
+});
+process.on("uncaughtException", (err) => {
+  console.error("[uncaughtException] - server staying up, but check this:", err);
+});
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -49,7 +68,15 @@ async function runSyncForLiveTournaments() {
       `select id, espn_event_id from tournaments where status = 'live'`
     );
     for (const t of live.rows) {
-      await syncTournamentScores(t.id, t.espn_event_id);
+      // Per-tournament try/catch - without this, one broken
+      // tournament (e.g. a leftover test tournament with no ESPN
+      // event id set) throws and stops the loop entirely, silently
+      // starving every OTHER live tournament of syncs too.
+      try {
+        await syncTournamentScores(t.id, t.espn_event_id);
+      } catch (err) {
+        console.error(`[syncLoop] tournament ${t.id} failed, continuing with the rest:`, err);
+      }
     }
   } catch (err) {
     console.error("[syncLoop] failed:", err);
