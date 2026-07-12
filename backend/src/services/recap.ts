@@ -1,4 +1,5 @@
 import { query } from "../db/client";
+import { computeTournamentHotHandScores } from "./hotHandScore";
 
 export interface RecapAward {
   id: string;
@@ -166,35 +167,10 @@ export async function generateRecap(leagueId: string): Promise<TournamentRecap> 
     });
   }
 
-  // Hot Hand Score champion/cold hand - same field-adjusted-rank
-  // logic as the live leaderboard version, computed independently
-  // here for the whole tournament.
-  const roundsByPlayerKey = new Map<string, { round_number: number; score_to_par: number }[]>();
-  for (const p of completedPicks) {
-    const key = p.player_name; // player_name is unique enough within one tournament's field for this purpose
-    const list = roundsByPlayerKey.get(key) ?? [];
-    list.push({ round_number: p.round_number, score_to_par: p.score_to_par });
-    roundsByPlayerKey.set(key, list);
-  }
-  const timingByTeam = new Map<string, { teamName: string; qualities: number[] }>();
-  for (const p of completedPicks) {
-    const rounds = roundsByPlayerKey.get(p.player_name);
-    if (!rounds || rounds.length < 2) continue;
-    const adjustedRounds = rounds.map((r) => fieldAdjusted(r));
-    const best = Math.min(...adjustedRounds);
-    const worst = Math.max(...adjustedRounds);
-    const range = worst - best || 1;
-    const quality = 1 - (fieldAdjusted(p) - best) / range;
-    const entry = timingByTeam.get(p.member_id) ?? { teamName: p.team_name, qualities: [] };
-    entry.qualities.push(quality);
-    timingByTeam.set(p.member_id, entry);
-  }
-  const timingScores = Array.from(timingByTeam.values())
-    .filter((t) => t.qualities.length >= 2)
-    .map((t) => ({
-      teamName: t.teamName,
-      score: Math.round((t.qualities.reduce((s, q) => s + q, 0) / t.qualities.length) * 100),
-    }));
+  // Hot Hand Score champion/cold hand - shared calculator, see
+  // hotHandScore.ts for the actual logic.
+  const teamHotHandScores = await computeTournamentHotHandScores(tournamentId);
+  const timingScores = teamHotHandScores.map((t) => ({ teamName: t.teamName, score: t.score }));
   if (timingScores.length > 0) {
     const hottest = timingScores.reduce((b, t) => (t.score > b.score ? t : b));
     awards.push({

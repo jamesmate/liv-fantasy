@@ -2,6 +2,7 @@ import { Router } from "express";
 import { query, withTransaction } from "../db/client";
 import { requireMember, requireOwner } from "../middleware/auth";
 import { finalizeTournamentResults, overrideTournamentWin, ResultsError } from "../services/tournamentResults";
+import { updateMemberCareerStats } from "../services/careerStats";
 import { syncTournamentScores } from "../services/scoreSync";
 import { getLeaderboard } from "../adapters/espnGolf";
 import { hashPasscode } from "../utils/passcode";
@@ -92,6 +93,13 @@ adminRouter.patch("/tournaments/:id/status", async (req, res) => {
   if (status === "completed") {
     try {
       const result = await finalizeTournamentResults(req.params.id);
+      // Best-effort: career stats (Hot Hand history, favourite player,
+      // personal bests) shouldn't block finalization if something
+      // about this specific computation fails - the win/placement
+      // ledger finalizing correctly matters more.
+      await updateMemberCareerStats(req.params.id).catch((err) =>
+        console.error(`Career stats update failed for tournament ${req.params.id}:`, err)
+      );
       return res.json({ success: true, ...result });
     } catch (err) {
       if (err instanceof ResultsError) {

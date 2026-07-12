@@ -49,6 +49,27 @@ alter table tournament_players add column if not exists inactive_reason text;
 -- not one per request.
 alter table tournaments add column if not exists last_synced_at timestamptz;
 
+-- Persistent, cross-tournament stats per member - deliberately NOT
+-- recomputed live on every page load. Updated once, at the moment a
+-- tournament is finalized (status -> completed), by
+-- services/careerStats.ts. Running averages are stored as a
+-- sum+count pair rather than a precomputed average, so each new
+-- tournament can just add to the sum/count rather than needing to
+-- know every past tournament's individual score.
+create table if not exists member_career_stats (
+  member_id uuid primary key references members(id) on delete cascade,
+  tournaments_with_hot_hand int not null default 0,
+  hot_hand_score_sum int not null default 0,
+  best_hot_hand_score int,
+  best_hot_hand_tournament_name text,
+  best_round_score int,
+  best_round_tournament_name text,
+  best_round_number int,
+  favourite_player_name text,
+  favourite_player_use_count int,
+  updated_at timestamptz not null default now()
+);
+
 -- The old model stored a single session_token directly on the member
 -- row, which meant logging in on a second device silently invalidated
 -- the first one (only one token could ever be valid at once). This

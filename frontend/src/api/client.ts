@@ -161,6 +161,19 @@ export interface LeaderboardTeam {
   totalPicksMade: number;
 }
 
+export interface MemberCareerStats {
+  memberId: string;
+  avgHotHandScore: number | null;
+  tournamentsWithHotHand: number;
+  bestHotHandScore: number | null;
+  bestHotHandTournamentName: string | null;
+  bestRoundScore: number | null;
+  bestRoundTournamentName: string | null;
+  bestRoundNumber: number | null;
+  favouritePlayerName: string | null;
+  favouritePlayerUseCount: number | null;
+}
+
 export interface RecapAward {
   id: string;
   emoji: string;
@@ -437,6 +450,9 @@ export const api = {
 
   getPodiumStandings: (leagueId: string) =>
     request<PodiumStanding[]>(`/leagues/${leagueId}/podium-standings`),
+
+  getCareerStats: (leagueId: string) =>
+    request<MemberCareerStats[]>(`/leagues/${leagueId}/career-stats`),
 
   // --- Career / all-time (any member can view) ---
 

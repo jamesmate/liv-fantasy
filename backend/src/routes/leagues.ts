@@ -211,6 +211,45 @@ leagueRouter.get("/:id/podium-standings", async (req, res) => {
   res.json(result.rows);
 });
 
+// GET /leagues/:id/career-stats - persistent, cross-tournament stats
+// per member (average/best Hot Hand Score, favourite player, best
+// single round ever) - computed once at each tournament's
+// finalization, not live. See services/careerStats.ts.
+leagueRouter.get("/:id/career-stats", async (req, res) => {
+  const result = await query<{
+    member_id: string;
+    tournaments_with_hot_hand: number;
+    hot_hand_score_sum: number;
+    best_hot_hand_score: number | null;
+    best_hot_hand_tournament_name: string | null;
+    best_round_score: number | null;
+    best_round_tournament_name: string | null;
+    best_round_number: number | null;
+    favourite_player_name: string | null;
+    favourite_player_use_count: number | null;
+  }>(
+    `select mcs.*
+       from member_career_stats mcs
+       join members m on m.id = mcs.member_id
+      where m.league_id = $1`,
+    [req.params.id]
+  );
+  const stats = result.rows.map((r) => ({
+    memberId: r.member_id,
+    avgHotHandScore:
+      r.tournaments_with_hot_hand > 0 ? Math.round(r.hot_hand_score_sum / r.tournaments_with_hot_hand) : null,
+    tournamentsWithHotHand: r.tournaments_with_hot_hand,
+    bestHotHandScore: r.best_hot_hand_score,
+    bestHotHandTournamentName: r.best_hot_hand_tournament_name,
+    bestRoundScore: r.best_round_score,
+    bestRoundTournamentName: r.best_round_tournament_name,
+    bestRoundNumber: r.best_round_number,
+    favouritePlayerName: r.favourite_player_name,
+    favouritePlayerUseCount: r.favourite_player_use_count,
+  }));
+  res.json(stats);
+});
+
 // GET /leagues/:id/career-standings - all-time wins and accumulated
 // score per team in this league, across every completed tournament.
 // Unlike most other league routes, this doesn't require ownership -
