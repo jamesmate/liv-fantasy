@@ -9,8 +9,10 @@ import {
   UnstyledButton,
   Badge,
   Center,
+  Modal,
+  ActionIcon,
 } from "@mantine/core";
-import { IconChevronDown, IconChevronUp, IconBolt } from "@tabler/icons-react";
+import { IconChevronDown, IconChevronUp, IconBolt, IconInfoCircle } from "@tabler/icons-react";
 import { api, LeaderboardResponse, LeaderboardTeam } from "../api/client";
 import { getCountryFlagUrl } from "../utils/countryFlags";
 import { LoadingIndicator } from "../components/LoadingIndicator";
@@ -163,6 +165,8 @@ function TeamRow({
   isExpanded: boolean;
   onToggle: () => void;
 }) {
+  const [infoOpen, setInfoOpen] = useState(false);
+
   return (
     <Box style={{ borderBottom: "1px solid var(--mantine-color-forest-3)" }}>
       <UnstyledButton onClick={onToggle} style={{ width: "100%" }}>
@@ -225,9 +229,23 @@ function TeamRow({
               </Box>
               {team.timingScoreQualifyingPicks >= 2 && (
                 <Box style={{ flexShrink: 0 }}>
-                  <Text size="10px" fw={700} c="forest.3" tt="uppercase" mb={3}>
-                    Pick IQ
-                  </Text>
+                  <Group gap={2} wrap="nowrap" mb={3}>
+                    <Text size="10px" fw={700} c="forest.3" tt="uppercase">
+                      Hot Hand Score
+                    </Text>
+                    <ActionIcon
+                      variant="subtle"
+                      color="forest"
+                      size="xs"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setInfoOpen(true);
+                      }}
+                      aria-label="How Hot Hand Score is calculated"
+                    >
+                      <IconInfoCircle size={12} />
+                    </ActionIcon>
+                  </Group>
                   <Box
                     style={{
                       backgroundColor: getPercentColor(team.timingScore!),
@@ -324,6 +342,34 @@ function TeamRow({
           ))}
         </Box>
       </Collapse>
+
+      <Modal
+        opened={infoOpen}
+        onClose={() => setInfoOpen(false)}
+        title="How Hot Hand Score works"
+        centered
+        overlayProps={{ blur: 6, backgroundOpacity: 0.4 }}
+      >
+        <Stack gap="sm">
+          <Text size="sm">
+            Hot Hand Score measures how well a team's picks lined up with each player's actual good rounds - not
+            just whether they picked good golfers, but whether they picked them at the right time.
+          </Text>
+          <Text size="sm">
+            For every pick, we compare that round's score to the field's average score that same day, so a rough
+            score on a brutal weather day and a good score on an easy scoring day are judged fairly against each
+            other.
+          </Text>
+          <Text size="sm">
+            Each pick is then ranked against that SAME player's other rounds in the tournament - landing on their
+            best relative round scores 100%, their worst scores 0%, with the picks in between scored on a sliding
+            scale. Hot Hand Score is the average across all of a team's qualifying picks.
+          </Text>
+          <Text size="10px" c="dimmed">
+            Only shown once a team has at least 2 picks with enough data to compare fairly.
+          </Text>
+        </Stack>
+      </Modal>
     </Box>
   );
 }
