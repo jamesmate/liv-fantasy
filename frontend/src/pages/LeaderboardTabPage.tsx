@@ -15,6 +15,7 @@ import { api, LeaderboardResponse, LeaderboardTeam } from "../api/client";
 import { getCountryFlagUrl } from "../utils/countryFlags";
 import { LoadingIndicator } from "../components/LoadingIndicator";
 import { RoundSparkline } from "../components/RoundSparkline";
+import { TeamTimingSummary } from "../components/TeamTimingSummary";
 
 function formatToPar(n: number | null): string {
   if (n === null) return "-";
@@ -194,6 +195,12 @@ function TeamRow({
 
       <Collapse in={isExpanded}>
         <Box pb="sm" px="xs" style={{ background: "var(--mantine-color-forest-0)" }}>
+          <Box pt="sm" pb="xs">
+            <Text size="10px" fw={700} c="forest.4" tt="uppercase" mb={4}>
+              All picks this tournament
+            </Text>
+            <TeamTimingSummary team={team} variant="light" />
+          </Box>
           {team.rounds.map((round) => (
             <Box key={round.roundNumber} mb="xs">
               <Text size="xs" fw={700} c="forest.6" mb={4}>
