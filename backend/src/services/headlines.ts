@@ -28,10 +28,12 @@ interface LivePick {
  * already being synced from ESPN - there's nothing here that needs
  * persisting separately.
  *
- * Deliberately scoped to the picks THIS LEAGUE'S teams actually made
- * (not the whole ESPN field) - a league-specific news feed about their
- * own picks is more relevant than general tournament news they could
- * get from ESPN itself.
+ * Covers both this league's own picks (double plays paying off or
+ * backfiring, who's leading among picked players, missed-cut
+ * disasters, which team's currently having the best round) AND
+ * notable things happening in the WIDER field, regardless of whether
+ * anyone in the league picked them - e.g. someone else torching the
+ * course that nobody grabbed.
  */
 export async function generateHeadlines(tournamentId: string): Promise<Headline[]> {
   // "Current round" = the highest round number that has ANY live score
@@ -80,6 +82,25 @@ export async function generateHeadlines(tournamentId: string): Promise<Headline[
     thru: r.thru,
     roundNumber: r.round_number,
   }));
+
+  // The WHOLE ESPN field for this round, not just this league's
+  // picks - lets headlines surface things happening in the
+  // tournament generally, e.g. someone torching the course that
+  // nobody in the league happened to pick.
+  const fieldResult = await query<{
+    full_name: string;
+    score_to_par: number | null;
+    status: string;
+    thru: number | null;
+  }>(
+    `select tp.full_name, prs.score_to_par, prs.status, prs.thru
+       from player_round_scores prs
+       join tournament_players tp on tp.id = prs.tournament_player_id
+       join rounds r on r.id = prs.round_id
+      where r.tournament_id = $1 and r.round_number = $2`,
+    [tournamentId, currentRound]
+  );
+  const pickedPlayerNames = new Set(picks.map((p) => p.playerName));
 
   const headlines: Headline[] = [];
 
@@ -168,6 +189,48 @@ export async function generateHeadlines(tournamentId: string): Promise<Headline[
         roundLeader.total
       )}.`,
     });
+  }
+
+  // Hottest round in the WHOLE field right now, live - regardless of
+  // whether anyone in the league actually picked them. Flags whether
+  // they were picked, since "nobody grabbed the guy shooting -8" is
+  // itself part of the story.
+  const fieldInProgress = fieldResult.rows.filter(
+    (r) => r.status === "in_progress" && r.score_to_par !== null
+  );
+  if (fieldInProgress.length > 0) {
+    const hottest = fieldInProgress.reduce((best, r) =>
+      (r.score_to_par as number) < (best.score_to_par as number) ? r : best
+    );
+    // Only worth a headline if it's genuinely a notable round, and
+    // not just re-stating the "leading among picked players" one
+    // above with the same person.
+    if ((hottest.score_to_par as number) <= -4 && !pickedPlayerNames.has(hottest.full_name)) {
+      headlines.push({
+        id: `field-hot-${hottest.full_name}-${currentRound}`,
+        emoji: "🌋",
+        priority: 65,
+        text: `Elsewhere in the field, ${hottest.full_name} is on fire at ${scorePhrase(
+          hottest.score_to_par as number
+        )}${holesPhrase(hottest.thru)} - nobody in your league picked them today.`,
+      });
+    }
+
+    // Biggest live collapse in the whole field.
+    const coldest = fieldInProgress.reduce((worst, r) =>
+      (r.score_to_par as number) > (worst.score_to_par as number) ? r : worst
+    );
+    if ((coldest.score_to_par as number) >= 5) {
+      const pickedNote = pickedPlayerNames.has(coldest.full_name) ? " - and someone in your league has them today" : "";
+      headlines.push({
+        id: `field-cold-${coldest.full_name}-${currentRound}`,
+        emoji: "🥶",
+        priority: 55,
+        text: `Rough day for ${coldest.full_name}, sitting at ${scorePhrase(
+          coldest.score_to_par as number
+        )}${holesPhrase(coldest.thru)}${pickedNote}.`,
+      });
+    }
   }
 
   return headlines.sort((a, b) => b.priority - a.priority).slice(0, 8);
