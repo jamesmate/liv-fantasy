@@ -237,6 +237,7 @@ function TeamRow({
                           <RoundSparkline
                             roundScores={pick.playerRoundScores}
                             highlightRound={round.roundNumber}
+                            highlightHasDoublePlay={pick.hasDoublePlay}
                             variant="light"
                           />
                           {pick.hasDoublePlay && (

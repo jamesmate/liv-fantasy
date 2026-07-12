@@ -119,7 +119,7 @@ export interface PlayerOption {
   total_to_par: number | null;
   rounds_played: number;
   leaderboard_position: number | null;
-  round_scores: Array<{ round_number: number; score_to_par: number; field_avg: number | null }>;
+  round_scores: Array<{ round_number: number; score_to_par: number; field_avg: number | null; field_best: number | null }>;
 }
 
 export interface PoolPlayer {
@@ -138,7 +138,7 @@ export interface LeaderboardRoundPick {
   scoreToPar: number;
   hasDoublePlay: boolean;
   status: string;
-  playerRoundScores: { roundNumber: number; scoreToPar: number; fieldAvg: number | null }[];
+  playerRoundScores: { roundNumber: number; scoreToPar: number; fieldAvg: number | null; fieldBest: number | null }[];
   timingRank: number | null;
   timingOf: number | null;
 }

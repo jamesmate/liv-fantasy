@@ -45,7 +45,7 @@ picksRouter.get("/:roundId/available-players", requireMember, async (req, res) =
 
   const players = await query(
     `with field_avg as (
-       select r.round_number, avg(prs.score_to_par) as avg_score
+       select r.round_number, avg(prs.score_to_par) as avg_score, min(prs.score_to_par) as best_score
          from player_round_scores prs
          join rounds r on r.id = prs.round_id
         where r.tournament_id = $1
@@ -71,7 +71,8 @@ picksRouter.get("/:roundId/available-players", requireMember, async (req, res) =
                         json_build_object(
                           'round_number', r.round_number,
                           'score_to_par', prs.score_to_par,
-                          'field_avg', fa.avg_score
+                          'field_avg', fa.avg_score,
+                          'field_best', fa.best_score
                         )
                         order by r.round_number
                       )

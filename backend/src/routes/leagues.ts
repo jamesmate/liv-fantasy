@@ -318,8 +318,8 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
   // (the original version of this feature) would rank that +3 as
   // their worst round even though it may have been their sharpest
   // relative to the conditions everyone else was facing that day.
-  const fieldAverages = await query<{ round_number: number; field_avg: string }>(
-    `select r.round_number, avg(prs.score_to_par) as field_avg
+  const fieldAverages = await query<{ round_number: number; field_avg: string; field_best: number }>(
+    `select r.round_number, avg(prs.score_to_par) as field_avg, min(prs.score_to_par) as field_best
        from player_round_scores prs
        join rounds r on r.id = prs.round_id
       where r.tournament_id = $1
@@ -330,6 +330,7 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
   const fieldAvgByRound = new Map<number, number>(
     fieldAverages.rows.map((r) => [r.round_number, Number(r.field_avg)])
   );
+  const fieldBestByRound = new Map<number, number>(fieldAverages.rows.map((r) => [r.round_number, r.field_best]));
 
   // For a single pick, where does the round it was made for rank
   // among that SAME player's other rounds (1 = their best round of
@@ -380,6 +381,7 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
             playerRoundScores: (roundsByPlayer.get(p.tournament_player_id) ?? []).map((r) => ({
               ...r,
               fieldAvg: fieldAvgByRound.get(r.roundNumber) ?? null,
+              fieldBest: fieldBestByRound.get(r.roundNumber) ?? null,
             })),
             // Where this specific pick's round ranked among that
             // player's OWN rounds (1 = best) - null until that player

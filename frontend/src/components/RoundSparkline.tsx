@@ -1,7 +1,10 @@
+import { IconTrophy } from "@tabler/icons-react";
+
 interface RoundScoreEntry {
   roundNumber: number;
   scoreToPar: number;
   fieldAvg?: number | null;
+  fieldBest?: number | null;
 }
 
 interface RoundSparklineProps {
@@ -9,6 +12,8 @@ interface RoundSparklineProps {
   roundScores: RoundScoreEntry[];
   /** Which round to ring as "the one this pick was actually for". */
   highlightRound?: number;
+  /** Was the DOUBLE PLAY token used on the highlighted round - shows a second, outer ring when true. */
+  highlightHasDoublePlay?: boolean;
   /** Fixed width/height of each round's SLOT - the actual filled circle is centered within this and may be smaller, but the slot itself (and therefore every circle's center point) never moves. */
   size?: number;
   gap?: number;
@@ -31,25 +36,38 @@ function getScoreColor(magnitude: number): string {
   return `rgb(${r}, ${g}, ${b})`;
 }
 
+// Outline geometry, all in px. Two independently-offset outlines (not
+// achievable with a single CSS `outline`, which only supports one) is
+// why the highlighted round is built from two nested wrapper divs
+// rather than one - each contributes its own ring at its own gap.
+const RING_WIDTH = 1; // reduced from 2px
+const RING1_GAP = 2; // gap between the filled circle and the pick ring
+const RING2_GAP = 1; // gap between ring 1 and the double-play ring (measured from ring 1's outer edge)
+
+// Extra space reserved around the WHOLE sparkline row so rings never
+// bleed into the row above/below - sized for the worst case (double
+// ring), not just whichever rounds actually have one, so every row's
+// height stays consistent regardless of which picks are highlighted.
+const MAX_RING_REACH = RING1_GAP + RING_WIDTH + RING2_GAP + RING_WIDTH; // 5px
+
 /**
  * Round-by-round history as a row of filled circles rather than a
  * line graph - each circle's SIZE and OPACITY both scale with how
  * good that round was FIELD-ADJUSTED (relative to the whole field's
- * average that day, not the raw score), so a gritty +2 on a brutal
- * scoring day reads as big/vivid, and a hollow-looking -1 on a day
- * everyone shot low reads as small/faint. This is deliberately the
- * same field-adjusted logic Timing Score uses, so the two always
- * agree with each other.
+ * average that day), so a gritty round on a brutal scoring day reads
+ * as big/vivid, and a hollow-looking score on a day everyone shot low
+ * reads as small/faint. Same field-adjusted logic Timing Score uses.
  *
  * Each round gets a fixed-size SLOT (width/height = size) with the
- * actual filled circle centered inside it - the circle itself can be
- * smaller than the slot, but the slot's center never moves regardless
- * of any circle's size, so every round lines up at a constant
- * horizontal position independent of its neighbors.
+ * actual filled circle centered inside it, so every round lines up at
+ * a constant horizontal position independent of its neighbors' sizes.
  *
- * The round this pick was actually FOR gets a ring - drawn on the
- * OUTER slot, not the inner faded circle, so the ring stays at a
- * constant opacity no matter how faint that round's own circle is.
+ * The round this pick was actually FOR gets a ring, drawn on an outer
+ * wrapper (not the faded inner circle) so the ring stays a constant
+ * opacity regardless of how faint that round's own circle is. If the
+ * Double Play token was used on that round, a second ring appears
+ * further out. If that round was the single best score in the WHOLE
+ * field that day, a small trophy shows inside the circle.
  *
  * Renders nothing with fewer than 2 rounds - a single round has
  * nothing to compare itself against.
@@ -57,6 +75,7 @@ function getScoreColor(magnitude: number): string {
 export function RoundSparkline({
   roundScores,
   highlightRound,
+  highlightHasDoublePlay,
   size = 22,
   gap = 4,
   variant = "dark",
@@ -65,63 +84,94 @@ export function RoundSparkline({
 
   const sorted = [...roundScores].sort((a, b) => a.roundNumber - b.roundNumber);
 
-  // Field-adjusted magnitude: how much better/worse than that day's
-  // field average. Falls back to the raw score if field average
-  // isn't available for some reason, rather than breaking.
   const magnitudes = sorted.map((r) => r.scoreToPar - (r.fieldAvg ?? 0));
-  const best = Math.min(...magnitudes); // most negative = best
+  const best = Math.min(...magnitudes);
   const worst = Math.max(...magnitudes);
   const range = worst - best || 1;
 
-  const minScale = 0.55; // smallest circle, for their worst round
-  const maxScale = 1.0; // largest circle, for their best round
+  const minScale = 0.55;
+  const maxScale = 1.0;
   const minOpacity = 0.5;
   const maxOpacity = 1.0;
 
   const ringColor = variant === "dark" ? "#fff" : "#1e3c2d";
 
   return (
-    <div style={{ display: "flex", alignItems: "center", gap, flexShrink: 0 }}>
+    <div style={{ display: "flex", alignItems: "center", gap, flexShrink: 0, padding: `${MAX_RING_REACH}px 0` }}>
       {sorted.map((r, i) => {
         const magnitude = magnitudes[i];
-        // quality: 1 = their best round, 0 = their worst
         const quality = 1 - (magnitude - best) / range;
         const scale = minScale + quality * (maxScale - minScale);
         const opacity = minOpacity + quality * (maxOpacity - minOpacity);
         const diameter = size * scale;
         const isHighlighted = r.roundNumber === highlightRound;
+        const showDoubleRing = isHighlighted && highlightHasDoublePlay;
         const bg = getScoreColor(magnitude);
+        const isFieldBest = r.fieldBest !== null && r.fieldBest !== undefined && r.scoreToPar <= r.fieldBest;
 
-        return (
-          // Fixed-size outer slot: this is what carries the ring
-          // (constant opacity) and what fixes this round's center
-          // position, regardless of the inner circle's own size.
+        // Ring 2 (double play) wraps ring 1 (pick highlight) - both
+        // are fixed-size slots the same dimensions as the innermost
+        // one, just with progressively larger outline-offsets, so
+        // they sit as genuinely separate concentric rings rather than
+        // one thick one.
+        const trophySize = Math.max(8, diameter * 0.55);
+
+        const circle = (
           <div
-            key={r.roundNumber}
-            title={`Round ${r.roundNumber}`}
+            style={{
+              width: diameter,
+              height: diameter,
+              borderRadius: "50%",
+              backgroundColor: bg,
+              opacity,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {isFieldBest && <IconTrophy size={trophySize} color="#fff" strokeWidth={2.5} />}
+          </div>
+        );
+
+        const ring1 = (
+          <div
             style={{
               width: size,
               height: size,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              flexShrink: 0,
-              outline: isHighlighted ? `2px solid ${ringColor}` : "none",
-              outlineOffset: isHighlighted ? 2 : 0,
               borderRadius: "50%",
+              outline: isHighlighted ? `${RING_WIDTH}px solid ${ringColor}` : "none",
+              outlineOffset: isHighlighted ? RING1_GAP : 0,
             }}
           >
-            {/* Inner filled circle: this is what fades - opacity
-                lives here only, never on the outer ringed slot. */}
-            <div
-              style={{
-                width: diameter,
-                height: diameter,
-                borderRadius: "50%",
-                backgroundColor: bg,
-                opacity,
-              }}
-            />
+            {circle}
+          </div>
+        );
+
+        const wrapped = showDoubleRing ? (
+          <div
+            style={{
+              width: size,
+              height: size,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              borderRadius: "50%",
+              outline: `${RING_WIDTH}px solid ${ringColor}`,
+              outlineOffset: RING1_GAP + RING_WIDTH + RING2_GAP,
+            }}
+          >
+            {ring1}
+          </div>
+        ) : (
+          ring1
+        );
+
+        return (
+          <div key={r.roundNumber} title={`Round ${r.roundNumber}`} style={{ flexShrink: 0 }}>
+            {wrapped}
           </div>
         );
       })}

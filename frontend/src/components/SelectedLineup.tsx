@@ -7,7 +7,7 @@ interface LineupSlot {
   name: string;
   scoreToPar?: number | null; // shown below the sprite once the round is locked/scored
   hasDoublePlay?: boolean;
-  roundScores?: { roundNumber: number; scoreToPar: number; fieldAvg?: number | null }[];
+  roundScores?: { roundNumber: number; scoreToPar: number; fieldAvg?: number | null; fieldBest?: number | null }[];
   currentRoundNumber?: number;
 }
 
@@ -158,6 +158,7 @@ export function SelectedLineup({
                 <RoundSparkline
                   roundScores={slot.roundScores}
                   highlightRound={slot.currentRoundNumber}
+                  highlightHasDoublePlay={slot.hasDoublePlay}
                   variant="dark"
                   size={12}
                   gap={2}

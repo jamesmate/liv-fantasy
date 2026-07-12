@@ -281,6 +281,7 @@ export default function PickTabPage() {
         roundNumber: rs.round_number,
         scoreToPar: rs.score_to_par,
         fieldAvg: rs.field_avg,
+        fieldBest: rs.field_best,
       })),
       currentRoundNumber: activeRoundNumber,
     };
