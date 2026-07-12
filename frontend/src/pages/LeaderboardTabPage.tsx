@@ -297,30 +297,21 @@ function TeamRow({
 
           {team.timingScoreQualifyingPicks >= 2 && (
             <Box mt="sm" pt="sm" pl="xs" style={{ borderTop: "1px solid var(--mantine-color-forest-2)" }}>
-              <Group gap="sm" wrap="nowrap" align="center">
+              <Group justify="space-between" align="center">
+                <Text size="xs" fw={700} c="forest.2">
+                  Pick IQ
+                </Text>
                 <Box
                   style={{
                     backgroundColor: getPercentColor(team.timingScore!),
                     color: getPercentTextColor(team.timingScore!),
-                    borderRadius: 12,
-                    width: 56,
-                    height: 56,
+                    borderRadius: 10,
+                    padding: "3px 10px",
                     flexShrink: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
                   }}
                 >
                   <Text size="lg" fw={800}>
-                    {team.timingScore}%
-                  </Text>
-                </Box>
-                <Box style={{ flex: 1 }}>
-                  <Text size="xs" fw={700} c="forest.2">
-                    Pick IQ
-                  </Text>
-                  <Text size="10px" c="forest.3" mt={2}>
-                    How sharp your picks were - catching players right as they got hot.
+                    {team.timingScore}
                   </Text>
                 </Box>
               </Group>
