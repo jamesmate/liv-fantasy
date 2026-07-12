@@ -220,7 +220,7 @@ function TeamRow({
             <TeamTimingSummary team={team} variant="light" />
           </Box>
           {team.rounds.map((round) => (
-            <Box key={round.roundNumber} mb="xs">
+            <Box key={round.roundNumber} mb={6}>
               <Text size="xs" fw={700} c="forest.2" mb={4}>
                 Round {round.roundNumber}
                 {round.total !== null ? ` · ${formatToPar(round.total)}` : ""}
@@ -230,7 +230,7 @@ function TeamRow({
                   No picks made
                 </Text>
               ) : (
-                <Stack gap={4} pl="xs">
+                <Stack gap={1} pl="xs">
                   {round.picks.map((pick, i) => {
                     const flagUrl = getCountryFlagUrl(pick.countryCode);
                     return (
