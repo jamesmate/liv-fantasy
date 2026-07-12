@@ -1,6 +1,23 @@
 import { Group, Text, Stack, Box } from "@mantine/core";
 import { AnimatedGolferSprite } from "./sprites/AnimatedGolferSprite";
-import { RoundSparkline } from "./RoundSparkline";
+
+// Same raw-score red-neutral-green gradient used on the player list
+// in PickTabPage - kept local here (small, cheap to duplicate) rather
+// than importing across files for one shared style.
+function getScoreColor(scoreToPar: number): string {
+  const clamped = Math.max(-5, Math.min(5, scoreToPar));
+  const deepGreen: [number, number, number] = [22, 120, 62];
+  const neutral: [number, number, number] = [230, 227, 218];
+  const deepRed: [number, number, number] = [150, 24, 24];
+  const [from, to, t] =
+    clamped <= 0 ? [deepGreen, neutral, (clamped + 5) / 5] : [neutral, deepRed, clamped / 5];
+  const [r, g, b] = from.map((c, i) => Math.round(c + (to[i] - c) * t));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function getScoreTextColor(scoreToPar: number): string {
+  return Math.abs(scoreToPar) <= 1 ? "#2b2b2b" : "#ffffff";
+}
 
 interface LineupSlot {
   id: string;
@@ -138,32 +155,28 @@ export function SelectedLineup({
                 {slot ? slot.name.split(" ").slice(-1)[0] : "—"}
               </Text>
               {showScores && slot && slot.scoreToPar !== undefined && slot.scoreToPar !== null && (
-                <Text
-                  size="xs"
-                  fw={800}
-                  style={{
-                    color:
-                      slot.scoreToPar < 0
-                        ? "var(--mantine-color-mint-4)"
-                        : slot.scoreToPar > 0
-                        ? "var(--mantine-color-coral-3)"
-                        : "white",
-                    textShadow: "1px 1px 2px rgba(0,0,0,0.8)",
-                  }}
-                >
-                  {formatToPar(slot.scoreToPar)}
-                  {slot.hasDoublePlay && !slot.isCompleted ? " ⚡" : ""}
-                </Text>
-              )}
-              {slot && slot.roundScores && slot.roundScores.length > 1 && (
-                <RoundSparkline
-                  roundScores={slot.roundScores}
-                  highlightRound={slot.currentRoundNumber}
-                  highlightHasDoublePlay={slot.hasDoublePlay}
-                  variant="dark"
-                  size={12}
-                  gap={2}
-                />
+                <Group gap={3} wrap="nowrap" justify="center">
+                  <Text
+                    size="10px"
+                    fw={700}
+                    ta="center"
+                    style={{
+                      backgroundColor: getScoreColor(slot.scoreToPar),
+                      color: getScoreTextColor(slot.scoreToPar),
+                      borderRadius: 3,
+                      minWidth: 22,
+                      padding: "1px 3px",
+                      lineHeight: "15px",
+                    }}
+                  >
+                    {formatToPar(slot.scoreToPar)}
+                  </Text>
+                  {slot.hasDoublePlay && !slot.isCompleted && (
+                    <Text size="10px" style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.8)" }}>
+                      ⚡
+                    </Text>
+                  )}
+                </Group>
               )}
             </Stack>
           );
