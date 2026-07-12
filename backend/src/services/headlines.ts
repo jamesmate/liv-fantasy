@@ -185,7 +185,7 @@ export async function generateHeadlines(tournamentId: string): Promise<Headline[
       id: `round-leader-${roundLeader.teamName}-${currentRound}`,
       emoji: "📈",
       priority: 50,
-      text: `${roundLeader.teamName} currently has the best round ${currentRound} total among all teams at ${scorePhrase(
+      text: `${roundLeader.teamName} are currently having the best round ${currentRound} total among all teams at ${scorePhrase(
         roundLeader.total
       )}.`,
     });
