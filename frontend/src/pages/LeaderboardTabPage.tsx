@@ -214,10 +214,34 @@ function TeamRow({
       <Collapse in={isExpanded}>
         <Box pb="sm" px="xs" style={{ background: "var(--mantine-color-forest-0)" }}>
           <Box pt="sm" pb="xs">
-            <Text size="10px" fw={700} c="forest.3" tt="uppercase" mb={4}>
-              All picks this tournament
-            </Text>
-            <TeamTimingSummary team={team} variant="light" />
+            <Group justify="space-between" align="flex-start" wrap="nowrap">
+              <Box style={{ minWidth: 0, flex: 1 }}>
+                <Text size="10px" fw={700} c="forest.3" tt="uppercase" mb={4}>
+                  All picks this tournament
+                </Text>
+                <TeamTimingSummary team={team} variant="light" />
+              </Box>
+              {team.timingScoreQualifyingPicks >= 2 && (
+                <Box style={{ flexShrink: 0 }} ta="right">
+                  <Text size="10px" fw={700} c="forest.3" tt="uppercase" mb={4}>
+                    Pick IQ
+                  </Text>
+                  <Box
+                    style={{
+                      backgroundColor: getPercentColor(team.timingScore!),
+                      color: getPercentTextColor(team.timingScore!),
+                      borderRadius: 10,
+                      padding: "3px 10px",
+                      display: "inline-block",
+                    }}
+                  >
+                    <Text size="lg" fw={800}>
+                      {team.timingScore}
+                    </Text>
+                  </Box>
+                </Box>
+              )}
+            </Group>
           </Box>
           {team.rounds.map((round) => (
             <Box key={round.roundNumber} mb={6}>
@@ -294,29 +318,6 @@ function TeamRow({
               )}
             </Box>
           ))}
-
-          {team.timingScoreQualifyingPicks >= 2 && (
-            <Box mt="sm" pt="sm" pl="xs" style={{ borderTop: "1px solid var(--mantine-color-forest-2)" }}>
-              <Group justify="space-between" align="center">
-                <Text size="xs" fw={700} c="forest.2">
-                  Pick IQ
-                </Text>
-                <Box
-                  style={{
-                    backgroundColor: getPercentColor(team.timingScore!),
-                    color: getPercentTextColor(team.timingScore!),
-                    borderRadius: 10,
-                    padding: "3px 10px",
-                    flexShrink: 0,
-                  }}
-                >
-                  <Text size="lg" fw={800}>
-                    {team.timingScore}
-                  </Text>
-                </Box>
-              </Group>
-            </Box>
-          )}
         </Box>
       </Collapse>
     </Box>
