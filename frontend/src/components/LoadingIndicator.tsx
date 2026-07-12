@@ -10,5 +10,11 @@ import { LogoPulseSpinner } from "./LogoPulseSpinner";
  */
 export function LoadingIndicator() {
   const [useSpinPulse] = useState(() => Math.random() < 0.5);
-  return useSpinPulse ? <LogoPulseSpinner size={100} /> : <LogoSpinner height={56} />;
+  // LogoSpinner's height prop and LogoPulseSpinner's size (width) prop
+  // aren't the same dimension - the pulse spinner shows the full
+  // wordmark, a wide ~4:1 image, so matching widths would make it
+  // look tiny next to the letters. Sizing pulse's width to 4x the
+  // wobble height lines up their actual rendered HEIGHT instead,
+  // since that's what reads as "the same size" side by side.
+  return useSpinPulse ? <LogoPulseSpinner size={160} /> : <LogoSpinner height={40} />;
 }

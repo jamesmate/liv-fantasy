@@ -1,16 +1,33 @@
-@keyframes logo-pulse-spin {
-  0% {
-    transform: rotate(0deg) scale(0.8);
+/* Constant-speed clockwise rotation - linear timing (not ease-in-out)
+   so there's never any deceleration to be mistaken for a pause or a
+   direction change. Positive degrees = clockwise in CSS. */
+@keyframes logo-pulse-rotate {
+  from {
+    transform: rotate(0deg);
   }
-  50% {
-    transform: rotate(180deg) scale(1.15);
-  }
-  100% {
-    transform: rotate(360deg) scale(0.8);
+  to {
+    transform: rotate(360deg);
   }
 }
 
-.logo-pulse-spinner {
-  animation: logo-pulse-spin 2.2s ease-in-out infinite;
+/* Independent expand/shrink pulse, free to keep its own ease-in-out
+   feel without affecting the rotation's timing. */
+@keyframes logo-pulse-scale {
+  0%,
+  100% {
+    transform: scale(0.75);
+  }
+  50% {
+    transform: scale(1.2);
+  }
+}
+
+.logo-pulse-spinner-rotate {
+  animation: logo-pulse-rotate 1s linear infinite;
+  display: inline-block;
+}
+
+.logo-pulse-spinner-scale {
+  animation: logo-pulse-scale 0.9s ease-in-out infinite;
   display: block;
 }

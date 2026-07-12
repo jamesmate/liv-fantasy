@@ -6,17 +6,28 @@ interface LogoPulseSpinnerProps {
 
 /**
  * Secondary loading indicator: the full JAMDOG wordmark rotating
- * continuously while pulsing bigger and smaller. Separate component
- * from LogoSpinner (the letter-by-letter one) since this uses the
- * single flat wordmark image rather than the individual letter art.
+ * clockwise continuously while pulsing bigger and smaller.
+ *
+ * Rotation and scale are on two separate nested elements (rather than
+ * one combined `transform: rotate(...) scale(...)` animation) so each
+ * can use its own timing function - rotation is linear/constant-speed
+ * so it reads as unambiguously, continuously clockwise, while scale
+ * keeps an ease-in-out feel for the pulse. Combining both into one
+ * shared ease-in-out timing made the rotation appear to hitch/pause
+ * right at the midpoint (exactly when the deceleration going into 180
+ * degrees lines up with the scale peak), which could look like a
+ * brief reversal even though the rotation value itself never actually
+ * changed direction.
  */
 export function LogoPulseSpinner({ size = 120 }: LogoPulseSpinnerProps) {
   return (
-    <img
-      src="/jamdog-logo.png"
-      alt="Loading"
-      className="logo-pulse-spinner"
-      style={{ width: size, height: "auto" }}
-    />
+    <div className="logo-pulse-spinner-rotate" style={{ width: size }}>
+      <img
+        src="/jamdog-logo.png"
+        alt="Loading"
+        className="logo-pulse-spinner-scale"
+        style={{ width: size, height: "auto" }}
+      />
+    </div>
   );
 }
