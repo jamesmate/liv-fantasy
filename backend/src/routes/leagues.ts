@@ -373,8 +373,14 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
             status: p.player_status,
             // Full round-by-round line for this player, for the
             // sparkline - empty/short until they've played enough to
-            // be worth graphing.
-            playerRoundScores: roundsByPlayer.get(p.tournament_player_id) ?? [],
+            // be worth graphing. fieldAvg alongside each round lets
+            // the frontend show field-adjusted magnitude (a round
+            // that beat a brutal scoring day should look "big" even
+            // if the raw number isn't pretty).
+            playerRoundScores: (roundsByPlayer.get(p.tournament_player_id) ?? []).map((r) => ({
+              ...r,
+              fieldAvg: fieldAvgByRound.get(r.roundNumber) ?? null,
+            })),
             // Where this specific pick's round ranked among that
             // player's OWN rounds (1 = best) - null until that player
             // has 2+ rounds in, per the "not meaningful with only one

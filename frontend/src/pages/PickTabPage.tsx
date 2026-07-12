@@ -277,7 +277,11 @@ export default function PickTabPage() {
       // flag from a previous save, so the club pose swaps in the
       // moment someone taps the bolt icon, not just after it's saved.
       hasDoublePlay: doublePlayId === id || !!scored?.has_double_play,
-      roundScores: p?.round_scores.map((rs) => ({ roundNumber: rs.round_number, scoreToPar: rs.score_to_par })),
+      roundScores: p?.round_scores.map((rs) => ({
+        roundNumber: rs.round_number,
+        scoreToPar: rs.score_to_par,
+        fieldAvg: rs.field_avg,
+      })),
       currentRoundNumber: activeRoundNumber,
     };
   });

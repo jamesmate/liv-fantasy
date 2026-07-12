@@ -44,7 +44,15 @@ picksRouter.get("/:roundId/available-players", requireMember, async (req, res) =
   maybeSync(tournamentId, tournamentRow.rows[0]?.espn_event_id ?? null, tournamentRow.rows[0]?.status ?? "");
 
   const players = await query(
-    `select tp.id, tp.full_name, tp.pro_team_name, tp.country_code, tp.is_active, tp.inactive_reason,
+    `with field_avg as (
+       select r.round_number, avg(prs.score_to_par) as avg_score
+         from player_round_scores prs
+         join rounds r on r.id = prs.round_id
+        where r.tournament_id = $1
+          and prs.score_to_par is not null
+        group by r.round_number
+     )
+     select tp.id, tp.full_name, tp.pro_team_name, tp.country_code, tp.is_active, tp.inactive_reason,
             exists (
               select 1 from picks p
               join rounds r on r.id = p.round_id
@@ -60,11 +68,16 @@ picksRouter.get("/:roundId/available-players", requireMember, async (req, res) =
             end as leaderboard_position,
             coalesce(
               (select json_agg(
-                        json_build_object('round_number', r.round_number, 'score_to_par', prs.score_to_par)
+                        json_build_object(
+                          'round_number', r.round_number,
+                          'score_to_par', prs.score_to_par,
+                          'field_avg', fa.avg_score
+                        )
                         order by r.round_number
                       )
                  from player_round_scores prs
                  join rounds r on r.id = prs.round_id
+                 left join field_avg fa on fa.round_number = r.round_number
                 where prs.tournament_player_id = tp.id
                   and prs.score_to_par is not null),
               '[]'
