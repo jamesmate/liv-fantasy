@@ -218,6 +218,7 @@ export interface PodiumStanding {
   thirds: number;
   tournaments_played: number;
   career_total_to_par: number;
+  total_points: number;
 }
 
 export interface NeedsSwapPick {

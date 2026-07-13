@@ -83,20 +83,23 @@ export default function OverallStandingsTabPage() {
           py={6}
           style={{ borderBottom: "2px solid var(--mantine-color-forest-8)" }}
         >
-          <Text size="xs" fw={700} c="forest.8" style={{ flex: 3 }}>
+          <Text size="xs" fw={700} c="forest.8" style={{ flex: 2.6 }}>
             Team
           </Text>
-          <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.6 }}>
+          <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.55 }}>
             1st
           </Text>
-          <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.6 }}>
+          <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.55 }}>
             2nd
           </Text>
-          <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.6 }}>
+          <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.55 }}>
             3rd
           </Text>
-          <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.7 }}>
+          <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.6 }}>
             Played
+          </Text>
+          <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.8 }}>
+            Points
           </Text>
         </Group>
 
@@ -124,16 +127,16 @@ export default function OverallStandingsTabPage() {
                       </Text>
                     </Box>
                   </Group>
-                  <Text size="sm" fw={700} ta="center" c={s.firsts > 0 ? "#d4af37" : "forest.3"} style={{ flex: 0.6 }}>
+                  <Text size="sm" fw={700} ta="center" c={s.firsts > 0 ? "#d4af37" : "forest.3"} style={{ flex: 0.55 }}>
                     {s.firsts}
                   </Text>
-                  <Text size="sm" fw={600} ta="center" c={s.seconds > 0 ? "#a8a8a8" : "forest.3"} style={{ flex: 0.6 }}>
+                  <Text size="sm" fw={600} ta="center" c={s.seconds > 0 ? "#a8a8a8" : "forest.3"} style={{ flex: 0.55 }}>
                     {s.seconds}
                   </Text>
-                  <Text size="sm" fw={600} ta="center" c={s.thirds > 0 ? "tangerine.7" : "forest.3"} style={{ flex: 0.6 }}>
+                  <Text size="sm" fw={600} ta="center" c={s.thirds > 0 ? "tangerine.7" : "forest.3"} style={{ flex: 0.55 }}>
                     {s.thirds}
                   </Text>
-                  <Group gap={2} wrap="nowrap" justify="center" style={{ flex: 0.7 }}>
+                  <Group gap={2} wrap="nowrap" justify="center" style={{ flex: 0.6 }}>
                     <Text size="sm" c="forest.3">
                       {s.tournaments_played}
                     </Text>
@@ -143,6 +146,9 @@ export default function OverallStandingsTabPage() {
                       <IconChevronDown size={14} color="var(--mantine-color-forest-3)" />
                     )}
                   </Group>
+                  <Text size="sm" fw={700} ta="center" c="mint.7" style={{ flex: 0.8 }}>
+                    {s.total_points}
+                  </Text>
                 </Group>
               </UnstyledButton>
 

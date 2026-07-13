@@ -262,6 +262,14 @@ create table if not exists tournament_results (
   unique (tournament_id, member_id)
 );
 
+-- Points earned for this specific tournament, using a field-size-
+-- scaled formula rather than a fixed lookup table (see
+-- services/tournamentResults.ts for the actual formula and reasoning)
+-- - a fixed table like "1st=500, 2nd=300..." breaks down as the
+-- league's team count changes over time, either running out of
+-- entries or giving the same reward for beating 5 teams as beating 9.
+alter table tournament_results add column if not exists points int not null default 0;
+
 create index if not exists idx_tournament_results_league on tournament_results(league_id);
 create index if not exists idx_tournament_results_member on tournament_results(member_id);
 

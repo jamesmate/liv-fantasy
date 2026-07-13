@@ -126,7 +126,9 @@ group by m.id, m.league_id, m.team_name, m.display_name;
 -- have you finished on the podium", not a points/score total. Sort
 -- order (in application code, not this view) should be: most 1sts,
 -- then most 2nds, then most 3rds, then lowest career_total_to_par as
--- a final tiebreak.
+-- a final tiebreak. total_points is the field-size-scaled points
+-- system (see services/tournamentResults.ts calculatePoints) shown
+-- ALONGSIDE the win counts, not replacing them.
 create or replace view podium_standings as
 select
   m.id as member_id,
@@ -137,7 +139,8 @@ select
   count(tr.id) filter (where tr.placement = 2) as seconds,
   count(tr.id) filter (where tr.placement = 3) as thirds,
   count(tr.id) as tournaments_played,
-  coalesce(sum(tr.total_to_par), 0) as career_total_to_par
+  coalesce(sum(tr.total_to_par), 0) as career_total_to_par,
+  coalesce(sum(tr.points), 0) as total_points
 from members m
 left join tournament_results tr on tr.member_id = m.id
 group by m.id, m.league_id, m.team_name, m.display_name;

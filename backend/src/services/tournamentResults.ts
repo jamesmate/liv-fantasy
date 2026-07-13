@@ -17,6 +17,26 @@ import { query, withTransaction } from "../db/client";
 
 export class ResultsError extends Error {}
 
+const WIN_POINTS = 500;
+const POINTS_CURVE_EXPONENT = 1.5; // higher = more top-heavy; 1 = linear spread
+const PARTICIPATION_FLOOR = 20; // nobody who finished gets a literal zero
+
+/**
+ * Field-size-scaled points for a given placement, out of a given
+ * field size. 1st always earns WIN_POINTS regardless of how many
+ * teams played - a fixed lookup table (1st=500, 2nd=300...) breaks
+ * down as the league's team count changes over time, either running
+ * out of entries for a bigger field or rewarding beating 5 teams the
+ * same as beating 9. Scaling by field size means the points system
+ * works the same whether the league has 4 teams or 40, with no table
+ * to maintain as it grows.
+ */
+function calculatePoints(placement: number, fieldSize: number): number {
+  if (fieldSize <= 1) return WIN_POINTS;
+  const raw = WIN_POINTS * Math.pow((fieldSize - placement) / (fieldSize - 1), POINTS_CURVE_EXPONENT);
+  return Math.max(PARTICIPATION_FLOOR, Math.round(raw));
+}
+
 export async function finalizeTournamentResults(tournamentId: string) {
   const standings = await query<{
     member_id: string;
@@ -71,11 +91,12 @@ export async function finalizeTournamentResults(tournamentId: string) {
       previousPlacement = placement;
 
       const isWin = row.total_to_par === bestScore;
+      const points = calculatePoints(placement, standings.rows.length);
       await client.query(
         `insert into tournament_results
-           (tournament_id, league_id, member_id, team_name, total_to_par, placement, is_win)
-         values ($1, $2, $3, $4, $5, $6, $7)`,
-        [tournamentId, leagueId, row.member_id, row.team_name, row.total_to_par, placement, isWin]
+           (tournament_id, league_id, member_id, team_name, total_to_par, placement, is_win, points)
+         values ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [tournamentId, leagueId, row.member_id, row.team_name, row.total_to_par, placement, isWin, points]
       );
     }
   });
