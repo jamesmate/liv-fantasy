@@ -53,7 +53,7 @@ export function TournamentRecap({ leagueId }: TournamentRecapProps) {
               {a.emoji}
             </Text>
             <Box style={{ flex: 1 }}>
-              <Text size="sm" fw={700} c="tangerine.3">
+              <Text size="sm" fw={700} c="tangerine.3" style={{ fontFamily: "'Titan One', cursive" }}>
                 {a.title}
               </Text>
               <Text size="xs" c="forest.1">
