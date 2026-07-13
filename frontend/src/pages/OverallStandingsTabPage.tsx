@@ -136,19 +136,17 @@ export default function OverallStandingsTabPage() {
                   <Text size="sm" fw={600} ta="center" c={s.thirds > 0 ? "tangerine.7" : "forest.3"} style={{ flex: 0.55 }}>
                     {s.thirds}
                   </Text>
-                  <Group gap={2} wrap="nowrap" justify="center" style={{ flex: 0.6 }}>
-                    <Text size="sm" c="forest.3">
-                      {s.tournaments_played}
-                    </Text>
-                    {isExpanded ? (
-                      <IconChevronUp size={14} color="var(--mantine-color-forest-3)" />
-                    ) : (
-                      <IconChevronDown size={14} color="var(--mantine-color-forest-3)" />
-                    )}
-                  </Group>
+                  <Text size="sm" ta="center" c="forest.3" style={{ flex: 0.6 }}>
+                    {s.tournaments_played}
+                  </Text>
                   <Text size="sm" fw={700} ta="center" c="mint.7" style={{ flex: 0.8 }}>
                     {s.total_points}
                   </Text>
+                  {isExpanded ? (
+                    <IconChevronUp size={14} color="var(--mantine-color-forest-3)" style={{ flexShrink: 0 }} />
+                  ) : (
+                    <IconChevronDown size={14} color="var(--mantine-color-forest-3)" style={{ flexShrink: 0 }} />
+                  )}
                 </Group>
               </UnstyledButton>
 
