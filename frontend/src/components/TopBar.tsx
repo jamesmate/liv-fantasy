@@ -43,18 +43,24 @@ export function TopBar() {
 
   return (
     <Group h="100%" px="md" justify="space-between" wrap="nowrap">
-      <Group gap={8} wrap="nowrap" style={{ cursor: "pointer", minWidth: 0, flex: 1 }} onClick={goHome}>
+      <Group gap={8} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
         <img
           src="/jamdog-logo.png"
           alt="Jamdog"
+          onClick={(e) => {
+            e.stopPropagation();
+            window.open("https://jamdog.io", "_blank", "noopener,noreferrer");
+          }}
           style={{
             height: 40,
             width: "auto",
             flexShrink: 0,
             objectFit: "contain",
+            cursor: "pointer",
           }}
         />
         <Text
+          onClick={goHome}
           fw={800}
           size="lg"
           truncate
@@ -62,6 +68,7 @@ export function TopBar() {
             fontFamily: "'Poppins', sans-serif",
             letterSpacing: -0.5,
             color: "var(--mantine-color-mint-3)",
+            cursor: "pointer",
           }}
         >
           {tournamentName || "LIV Fantasy"}
