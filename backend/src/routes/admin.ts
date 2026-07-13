@@ -140,6 +140,37 @@ adminRouter.post("/tournaments/:id/sync-now", async (req, res) => {
 });
 
 
+// POST /admin/tournaments/:id/backfill-career-stats
+// Manually (re-)runs the career stats step in isolation, WITHOUT
+// touching finalizeTournamentResults (which handles wins/placements
+// and isn't safely re-runnable - calling it twice risks double
+// counting a win). Exists specifically for tournaments that were
+// marked completed BEFORE the member_career_stats migration was run:
+// the career stats step fails silently in that case (by design, so a
+// stats hiccup never blocks real finalization), and there's no
+// automatic retry - this lets the owner manually fill in the gap for
+// a specific already-completed tournament once the table exists.
+adminRouter.post("/tournaments/:id/backfill-career-stats", async (req, res) => {
+  const tournament = await query<{ id: string; status: string }>(
+    `select id, status from tournaments where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (tournament.rows.length === 0) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+  if (tournament.rows[0].status !== "completed") {
+    return res.status(400).json({ error: "Tournament isn't marked completed yet." });
+  }
+
+  try {
+    await updateMemberCareerStats(tournament.rows[0].id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err instanceof Error ? err.message : "Backfill failed." });
+  }
+});
+
 // Owner override for a specific team's win credit on an already
 // finalized (completed) tournament - e.g. correcting a tie-break.
 adminRouter.patch("/tournaments/:id/results/:memberId/win", async (req, res) => {
