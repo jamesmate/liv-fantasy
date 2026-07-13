@@ -684,3 +684,41 @@ adminRouter.post("/members/:memberId/passcode", async (req, res) => {
 
   res.json({ success: true, teamName: member.rows[0].team_name });
 });
+
+// POST /admin/schedule  { name, tour, startDate, endDate?, espnEventId? }
+// Adds an event to the league's schedule preview. Doesn't create a
+// real `tournaments` row or touch player pools - that still happens
+// separately via the seed script/admin page once the event actually
+// starts, same as always. This is purely "what's coming up".
+adminRouter.post("/schedule", async (req, res) => {
+  const { name, tour, startDate, endDate, espnEventId } = req.body;
+  if (!name || typeof name !== "string") {
+    return res.status(400).json({ error: "name is required." });
+  }
+  if (!tour || typeof tour !== "string") {
+    return res.status(400).json({ error: "tour is required." });
+  }
+  if (!startDate) {
+    return res.status(400).json({ error: "startDate is required." });
+  }
+
+  const result = await query<{ id: string }>(
+    `insert into schedule_events (league_id, name, tour, start_date, end_date, espn_event_id)
+     values ($1, $2, $3, $4, $5, $6)
+     returning id`,
+    [req.member!.leagueId, name, tour, startDate, endDate || null, espnEventId || null]
+  );
+  res.status(201).json({ id: result.rows[0].id });
+});
+
+// DELETE /admin/schedule/:id
+adminRouter.delete("/schedule/:id", async (req, res) => {
+  const result = await query(
+    `delete from schedule_events where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (result.rowCount === 0) {
+    return res.status(404).json({ error: "Schedule event not found." });
+  }
+  res.json({ success: true });
+});

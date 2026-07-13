@@ -70,6 +70,28 @@ create table if not exists member_career_stats (
   updated_at timestamptz not null default now()
 );
 
+-- Upcoming/past events preview for a league - deliberately separate
+-- from `tournaments` (which represents an event actually wired up for
+-- picking, with an ESPN event id, player pool, rounds, etc). This
+-- table is just a calendar: "what's coming up", filled in manually by
+-- the owner ahead of time, independent of whether that event has
+-- actually been seeded into the app yet. `tour` is a plain text field
+-- (not a DB enum) so new tours can be added without a migration -
+-- the frontend is what constrains it to a known set of options via a
+-- dropdown, and is also what a future per-tour points system would
+-- group by.
+create table if not exists schedule_events (
+  id uuid primary key default gen_random_uuid(),
+  league_id uuid not null references leagues(id) on delete cascade,
+  name text not null,
+  tour text not null, -- 'LIV' | 'PGA_TOUR' | 'DP_WORLD' | 'OTHER'
+  start_date date not null,
+  end_date date,
+  espn_event_id text,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_schedule_events_league on schedule_events(league_id, start_date);
+
 -- The old model stored a single session_token directly on the member
 -- row, which meant logging in on a second device silently invalidated
 -- the first one (only one token could ever be valid at once). This

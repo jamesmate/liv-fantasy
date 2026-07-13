@@ -36,6 +36,7 @@ import {
   getStoredJoinCode,
 } from "../api/client";
 import { getCountryFlagUrl } from "../utils/countryFlags";
+import { ScheduleAdmin } from "../components/ScheduleAdmin";
 
 export default function AdminPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
@@ -338,6 +339,8 @@ export default function AdminPage() {
       >
         View All-Time Leaderboard
       </Button>
+
+      {leagueId && <ScheduleAdmin leagueId={leagueId} />}
 
       {(!tournament || tournament.status === "completed") && (
         <Card bg="forest.7" p="lg">

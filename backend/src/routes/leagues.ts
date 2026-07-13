@@ -215,6 +215,26 @@ leagueRouter.get("/:id/podium-standings", async (req, res) => {
 // per member (average/best Hot Hand Score, favourite player, best
 // single round ever) - computed once at each tournament's
 // finalization, not live. See services/careerStats.ts.
+// GET /leagues/:id/schedule - upcoming (and recent past) events for
+// this league, soonest first. See schema.sql for why this is separate
+// from `tournaments` - it's a calendar entered ahead of time, not
+// necessarily wired up for picking yet.
+leagueRouter.get("/:id/schedule", async (req, res) => {
+  try {
+    const result = await query(
+      `select id, name, tour, start_date, end_date, espn_event_id
+         from schedule_events
+        where league_id = $1
+        order by start_date asc`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("schedule query failed:", err);
+    res.json([]);
+  }
+});
+
 leagueRouter.get("/:id/career-stats", async (req, res) => {
   try {
     const result = await query<{

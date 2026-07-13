@@ -4,6 +4,7 @@ import JoinPage from "./pages/JoinPage";
 import LoginPage from "./pages/LoginPage";
 import CreateLeaguePage from "./pages/CreateLeaguePage";
 import PickTabPage from "./pages/PickTabPage";
+import SchedulePage from "./pages/SchedulePage";
 import LeaderboardTabPage from "./pages/LeaderboardTabPage";
 import OverallStandingsTabPage from "./pages/OverallStandingsTabPage";
 import CareerStandingsPage from "./pages/CareerStandingsPage";
@@ -51,6 +52,7 @@ export default function App() {
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/create" element={<CreateLeaguePage />} />
                 <Route path="/league/:leagueId/pick" element={<PickTabPage />} />
+                <Route path="/league/:leagueId/schedule" element={<SchedulePage />} />
                 <Route path="/league/:leagueId/leaderboard" element={<LeaderboardTabPage />} />
                 <Route
                   path="/league/:leagueId/overall-standings"

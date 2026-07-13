@@ -161,6 +161,15 @@ export interface LeaderboardTeam {
   totalPicksMade: number;
 }
 
+export interface ScheduleEvent {
+  id: string;
+  name: string;
+  tour: string;
+  start_date: string;
+  end_date: string | null;
+  espn_event_id: string | null;
+}
+
 export interface MemberCareerStats {
   memberId: string;
   avgHotHandScore: number | null;
@@ -453,6 +462,25 @@ export const api = {
 
   getCareerStats: (leagueId: string) =>
     request<MemberCareerStats[]>(`/leagues/${leagueId}/career-stats`),
+
+  getSchedule: (leagueId: string) => request<ScheduleEvent[]>(`/leagues/${leagueId}/schedule`),
+
+  addScheduleEvent: (event: {
+    name: string;
+    tour: string;
+    startDate: string;
+    endDate?: string;
+    espnEventId?: string;
+  }) =>
+    request<{ id: string }>(`/admin/schedule`, {
+      method: "POST",
+      body: JSON.stringify(event),
+    }),
+
+  deleteScheduleEvent: (id: string) =>
+    request<{ success: true }>(`/admin/schedule/${id}`, {
+      method: "DELETE",
+    }),
 
   // --- Career / all-time (any member can view) ---
 
