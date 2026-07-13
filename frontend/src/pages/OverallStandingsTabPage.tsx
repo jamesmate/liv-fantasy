@@ -113,17 +113,17 @@ export default function OverallStandingsTabPage() {
                   <Text size="sm" fw={600} ta="center" c={s.seconds > 0 ? "forest.7" : "forest.3"} style={{ flex: 0.6 }}>
                     {s.seconds}
                   </Text>
-                  <Text size="sm" fw={600} ta="center" c={s.thirds > 0 ? "forest.6" : "forest.3"} style={{ flex: 0.6 }}>
+                  <Text size="sm" fw={600} ta="center" c={s.thirds > 0 ? "forest.2" : "forest.3"} style={{ flex: 0.6 }}>
                     {s.thirds}
                   </Text>
                   <Group gap={2} wrap="nowrap" justify="center" style={{ flex: 0.7 }}>
-                    <Text size="sm" c="forest.4">
+                    <Text size="sm" c="forest.3">
                       {s.tournaments_played}
                     </Text>
                     {isExpanded ? (
-                      <IconChevronUp size={14} color="var(--mantine-color-forest-4)" />
+                      <IconChevronUp size={14} color="var(--mantine-color-forest-3)" />
                     ) : (
-                      <IconChevronDown size={14} color="var(--mantine-color-forest-4)" />
+                      <IconChevronDown size={14} color="var(--mantine-color-forest-3)" />
                     )}
                   </Group>
                 </Group>
@@ -145,7 +145,7 @@ export default function OverallStandingsTabPage() {
                               Average Hot Hand Score: {stats.avgHotHandScore}
                             </Text>
                             {stats.bestHotHandScore !== null && (
-                              <Text size="10px" c="forest.4">
+                              <Text size="10px" c="forest.3">
                                 Best ever: {stats.bestHotHandScore} at {stats.bestHotHandTournamentName}
                               </Text>
                             )}
@@ -157,7 +157,7 @@ export default function OverallStandingsTabPage() {
                           <IconStar size={16} color="var(--mantine-color-mint-6)" />
                           <Text size="xs" fw={700} c="forest.7">
                             Favourite Player: {stats.favouritePlayerName}
-                            <Text span size="10px" c="forest.4">
+                            <Text span size="10px" c="forest.3">
                               {" "}
                               (picked {stats.favouritePlayerUseCount}x)
                             </Text>
@@ -169,7 +169,7 @@ export default function OverallStandingsTabPage() {
                           <IconGolf size={16} color="var(--mantine-color-coral-6)" />
                           <Text size="xs" fw={700} c="forest.7">
                             Best Round Ever: {formatToPar(stats.bestRoundScore)}
-                            <Text span size="10px" c="forest.4">
+                            <Text span size="10px" c="forest.3">
                               {" "}
                               (round {stats.bestRoundNumber} at {stats.bestRoundTournamentName})
                             </Text>
