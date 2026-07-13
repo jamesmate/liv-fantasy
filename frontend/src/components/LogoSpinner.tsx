@@ -9,12 +9,13 @@ interface LogoSpinnerProps {
 // each letter has its own aspect ratio, unlike the old approach which
 // sliced one wordmark image into equal-width windows.
 const LETTERS: { char: string; file: string; aspect: number }[] = [
-  { char: "J", file: "J.png", aspect: 247 / 342 },
-  { char: "A", file: "A.png", aspect: 263 / 343 },
-  { char: "M", file: "M.png", aspect: 304 / 344 },
-  { char: "D", file: "D.png", aspect: 304 / 322 },
-  { char: "O", file: "O.png", aspect: 254 / 292 },
-  { char: "G", file: "G.png", aspect: 255 / 292 },
+  { char: "J", file: "J.png", aspect: 228 / 342 },
+  { char: "A", file: "A.png", aspect: 241 / 341 },
+  { char: "M", file: "M.png", aspect: 291 / 335 },
+  { char: "G", file: "G.png", aspect: 253 / 310 },
+  { char: "O", file: "O.png", aspect: 230 / 308 },
+  { char: "L", file: "L.png", aspect: 228 / 309 },
+  { char: "F", file: "F.png", aspect: 227 / 307 },
 ];
 
 // Each letter shares one keyframe (see LogoSpinner.css) but starts
@@ -22,11 +23,13 @@ const LETTERS: { char: string; file: string; aspect: number }[] = [
 // visibly travels left to right and - critically - keeps doing so on
 // every loop, not just the first pass (see the comment at the actual
 // delay below for why positive delay, not negative, is what makes
-// that true).
+// that true). 7 letters * 0.22s = a 1.54s full cycle - keep this in
+// sync with the animation-duration in LogoSpinner.css if either
+// changes.
 const STEP_SECONDS = 0.22;
 
 /**
- * Loading indicator: JAMDOG's real letter art jumping in left to
+ * Loading indicator: JAMGOLF's real letter art jumping in left to
  * right, each with a little wobble, in a continuous cascading loop.
  */
 export function LogoSpinner({ height = 56 }: LogoSpinnerProps) {

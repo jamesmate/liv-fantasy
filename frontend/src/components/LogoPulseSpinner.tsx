@@ -5,7 +5,7 @@ interface LogoPulseSpinnerProps {
 }
 
 /**
- * Secondary loading indicator: the full JAMDOG wordmark rotating
+ * Secondary loading indicator: the full JAMGOLF wordmark rotating
  * clockwise continuously while pulsing bigger and smaller.
  *
  * Rotation and scale are on two separate nested elements (rather than
@@ -23,7 +23,7 @@ export function LogoPulseSpinner({ size = 120 }: LogoPulseSpinnerProps) {
   return (
     <div className="logo-pulse-spinner-rotate" style={{ width: size }}>
       <img
-        src="/jamdog-logo.png"
+        src="/jamgolf-logo.png"
         alt="Loading"
         className="logo-pulse-spinner-scale"
         style={{ width: size, height: "auto" }}

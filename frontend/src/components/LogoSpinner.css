@@ -1,10 +1,10 @@
 /*
- * Each letter tile runs the SAME 1.32s keyframe loop, but starts
+ * Each letter tile runs the SAME 1.54s keyframe loop, but starts
  * STEP_SECONDS (0.22s) later than the previous one via a POSITIVE
  * animation-delay set in the component - this keeps the six letters
  * permanently 0.22s apart in phase, on every single loop forever, so
  * the bounce travels left to right consistently rather than just on
- * the first pass. 6 letters * 0.22s step = exactly one full 1.32s
+ * the first pass. 7 letters * 0.22s step = exactly one full 1.54s
  * cycle, so the "big bounce" reaches letter 6 right as letter 1's
  * next lap is about to begin - a continuous wave with no dead gap.
  *
@@ -50,7 +50,7 @@
 }
 
 .logo-letter {
-  animation: letter-pop-wobble 1.32s ease-in-out infinite;
+  animation: letter-pop-wobble 1.54s ease-in-out infinite;
   transform-origin: center bottom;
   flex-shrink: 0;
 }
