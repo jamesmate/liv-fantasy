@@ -82,8 +82,8 @@ export default function SchedulePage() {
               {next.name}
             </Text>
             <Group gap={6}>
-              <IconCalendarEvent size={16} color="var(--mantine-color-forest-3)" />
-              <Text size="sm" c="forest.2">
+              <IconCalendarEvent size={16} color="var(--mantine-color-forest-5)" />
+              <Text size="sm" c="forest.5">
                 {formatDateRange(next.start_date, next.end_date)}
               </Text>
             </Group>

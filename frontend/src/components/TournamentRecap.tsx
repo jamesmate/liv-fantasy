@@ -39,7 +39,7 @@ export function TournamentRecap({ leagueId }: TournamentRecapProps) {
             <Text size="lg" fw={800} c="white" ta="center">
               🏆 {recap.champion.teamName}
             </Text>
-            <Text size="xs" c="forest.2">
+            <Text size="xs" c="forest.5">
               Champion, {recap.champion.total === 0 ? "E" : recap.champion.total > 0 ? `+${recap.champion.total}` : recap.champion.total}
             </Text>
           </>
@@ -56,7 +56,7 @@ export function TournamentRecap({ leagueId }: TournamentRecapProps) {
               <Text size="sm" fw={700} c="tangerine.3" style={{ fontFamily: "'Titan One', cursive" }}>
                 {a.title}
               </Text>
-              <Text size="xs" c="forest.1">
+              <Text size="xs" c="forest.5">
                 {a.description}
               </Text>
             </Box>
