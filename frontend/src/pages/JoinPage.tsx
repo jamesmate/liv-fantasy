@@ -27,7 +27,7 @@ export default function JoinPage() {
     setLoading(true);
     try {
       const result = await api.joinLeague(joinCode.trim(), displayName.trim(), teamName.trim());
-      setSession(result.sessionToken, result.memberId, result.leagueId, result.isOwner, undefined, teamName.trim());
+      setSession(result.sessionToken, result.memberId, result.leagueId, result.isOwner, undefined, teamName.trim(), result.leagueName);
       navigate(`/league/${result.leagueId}/pick`);
     } catch (err: any) {
       setError(err.message || "Couldn't join. Check the code and try again.");

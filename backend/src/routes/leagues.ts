@@ -180,6 +180,17 @@ leagueRouter.post("/login", async (req, res) => {
 // GET /leagues/:id/current-tournament - the most recently created
 // tournament for this league, with its rounds. Used by the frontend to
 // know what to link the "Pick" buttons to without hardcoding ids.
+// GET /leagues/:id - just the name, for the top bar to fall back to
+// fetching if a session predates when the league name started being
+// cached in localStorage at login time.
+leagueRouter.get("/:id", async (req, res) => {
+  const result = await query<{ name: string }>(`select name from leagues where id = $1`, [req.params.id]);
+  if (result.rows.length === 0) {
+    return res.status(404).json({ error: "League not found." });
+  }
+  res.json({ id: req.params.id, name: result.rows[0].name });
+});
+
 leagueRouter.get("/:id/current-tournament", async (req, res) => {
   const tournament = await query(
     `select * from tournaments where league_id = $1 order by created_at desc limit 1`,

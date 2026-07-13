@@ -10,7 +10,8 @@ export function setSession(
   leagueId: string,
   isOwner: boolean,
   joinCode?: string,
-  teamName?: string
+  teamName?: string,
+  leagueName?: string
 ) {
   localStorage.setItem("liv_fantasy_session_token", token);
   localStorage.setItem("liv_fantasy_member_id", memberId);
@@ -22,6 +23,13 @@ export function setSession(
   if (teamName) {
     localStorage.setItem("liv_fantasy_team_name", teamName);
   }
+  if (leagueName) {
+    localStorage.setItem("liv_fantasy_league_name", leagueName);
+  }
+}
+
+export function getStoredLeagueName(): string | null {
+  return localStorage.getItem("liv_fantasy_league_name");
 }
 
 export function getStoredTeamName(): string | null {
@@ -35,6 +43,7 @@ export function clearSession() {
   localStorage.removeItem("liv_fantasy_is_owner");
   localStorage.removeItem("liv_fantasy_join_code");
   localStorage.removeItem("liv_fantasy_team_name");
+  localStorage.removeItem("liv_fantasy_league_name");
 }
 
 export function getStoredLeagueId(): string | null {
@@ -465,6 +474,8 @@ export const api = {
     request<MemberCareerStats[]>(`/leagues/${leagueId}/career-stats`),
 
   getSchedule: (leagueId: string) => request<ScheduleEvent[]>(`/leagues/${leagueId}/schedule`),
+
+  getLeagueName: (leagueId: string) => request<{ id: string; name: string }>(`/leagues/${leagueId}`),
 
   addScheduleEvent: (event: {
     name: string;

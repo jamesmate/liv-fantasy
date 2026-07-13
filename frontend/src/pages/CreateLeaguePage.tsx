@@ -31,7 +31,7 @@ export default function CreateLeaguePage() {
         displayName.trim(),
         teamName.trim()
       );
-      setSession(result.sessionToken, result.memberId, result.leagueId, result.isOwner, result.joinCode, teamName.trim());
+      setSession(result.sessionToken, result.memberId, result.leagueId, result.isOwner, result.joinCode, teamName.trim(), result.leagueName);
       navigate(`/league/${result.leagueId}/pick`, { state: { justCreated: true } });
     } catch (err: any) {
       setError(err.message || "Couldn't create the league.");

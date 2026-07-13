@@ -29,7 +29,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const result = await api.loginToTeam(joinCode.trim(), teamName.trim(), passcode);
-      setSession(result.sessionToken, result.memberId, result.leagueId, result.isOwner, undefined, teamName.trim());
+      setSession(result.sessionToken, result.memberId, result.leagueId, result.isOwner, undefined, teamName.trim(), result.leagueName);
       navigate(`/league/${result.leagueId}/pick`);
     } catch (err: any) {
       setError(err.message || "Couldn't log in. Check your details and try again.");

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { Group, Text, ActionIcon, Tooltip } from "@mantine/core";
 import { IconArrowLeft, IconSettings } from "@tabler/icons-react";
-import { getStoredLeagueId, isStoredOwner, api } from "../api/client";
+import { getStoredLeagueId, getStoredLeagueName, isStoredOwner, api } from "../api/client";
 import { PasscodeButton } from "./PasscodeButton";
 
 export function TopBar() {
@@ -10,18 +10,26 @@ export function TopBar() {
   const location = useLocation();
   const { leagueId: routeLeagueId } = useParams<{ leagueId: string }>();
   const leagueId = routeLeagueId || getStoredLeagueId();
-  const [tournamentName, setTournamentName] = useState<string | null>(null);
+  const [leagueName, setLeagueName] = useState<string | null>(getStoredLeagueName());
   const isOwner = isStoredOwner();
 
   useEffect(() => {
-    if (!leagueId) {
-      setTournamentName(null);
+    const cached = getStoredLeagueName();
+    if (cached) {
+      setLeagueName(cached);
       return;
     }
+    // Session predates when the league name started being cached at
+    // login time - fetch it once and cache it so this only happens
+    // the one time, not on every load.
+    if (!leagueId) return;
     api
-      .getCurrentTournament(leagueId)
-      .then((t) => setTournamentName(t?.name ?? null))
-      .catch(() => setTournamentName(null));
+      .getLeagueName(leagueId)
+      .then((res) => {
+        localStorage.setItem("liv_fantasy_league_name", res.name);
+        setLeagueName(res.name);
+      })
+      .catch(() => {});
   }, [leagueId]);
 
   function goHome() {
@@ -52,7 +60,7 @@ export function TopBar() {
             window.open("https://jamdog.io", "_blank", "noopener,noreferrer");
           }}
           style={{
-            height: 40,
+            height: 28,
             width: "auto",
             flexShrink: 0,
             objectFit: "contain",
@@ -71,7 +79,7 @@ export function TopBar() {
             cursor: "pointer",
           }}
         >
-          {tournamentName || "LIV Fantasy"}
+          {leagueName || "LIV Fantasy"}
         </Text>
       </Group>
 
