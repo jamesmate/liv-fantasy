@@ -90,7 +90,7 @@ export function ScheduleAdmin({ leagueId }: ScheduleAdminProps) {
                     {e.name}
                   </Text>
                   <Text size="xs" c="forest.3" style={{ flexShrink: 0 }}>
-                    {e.start_date}
+                    {e.start_date.slice(0, 10)}
                   </Text>
                 </Group>
                 <ActionIcon variant="subtle" color="coral" size="sm" onClick={() => handleDelete(e.id)}>

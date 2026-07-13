@@ -6,11 +6,21 @@ import { api, ScheduleEvent } from "../api/client";
 import { LoadingIndicator } from "../components/LoadingIndicator";
 import { TourBadge } from "../components/TourBadge";
 
+// Postgres `date` columns come back through the pg driver as JS Date
+// objects, which Express's res.json() then serializes to a FULL ISO
+// datetime string (e.g. "2026-07-21T00:00:00.000Z"), not the plain
+// "2026-07-21" you might expect from a `date` column. Taking just the
+// first 10 characters normalizes either shape before parsing, so this
+// doesn't break if that serialization behavior ever changes.
+function parseDateOnly(dateStr: string): Date {
+  return new Date(dateStr.slice(0, 10) + "T00:00:00");
+}
+
 function formatDateRange(startDate: string, endDate: string | null): string {
-  const start = new Date(startDate + "T00:00:00");
+  const start = parseDateOnly(startDate);
   const startStr = start.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-  if (!endDate || endDate === startDate) return startStr;
-  const end = new Date(endDate + "T00:00:00");
+  if (!endDate || endDate.slice(0, 10) === startDate.slice(0, 10)) return startStr;
+  const end = parseDateOnly(endDate);
   const sameMonth = start.getMonth() === end.getMonth();
   const endStr = end.toLocaleDateString("en-US", sameMonth ? { day: "numeric" } : { month: "short", day: "numeric" });
   return `${startStr}-${endStr}`;
@@ -27,7 +37,7 @@ export default function SchedulePage() {
       .getSchedule(leagueId)
       .then((res) => {
         const today = new Date().toISOString().slice(0, 10);
-        setEvents(res.filter((e) => (e.end_date ?? e.start_date) >= today));
+        setEvents(res.filter((e) => (e.end_date ?? e.start_date).slice(0, 10) >= today));
       })
       .catch((err) => setError(err.message));
   }, [leagueId]);
