@@ -13,6 +13,23 @@ function formatToPar(n: number | null): string {
   return n > 0 ? `+${n}` : `${n}`;
 }
 
+// Same red-neutral-green gradient used for Hot Hand Score on the
+// Leaderboard page, for the exact same visual language here.
+function getPercentColor(percent: number): string {
+  const clamped = Math.max(0, Math.min(100, percent));
+  const deepRed: [number, number, number] = [150, 24, 24];
+  const neutral: [number, number, number] = [230, 227, 218];
+  const deepGreen: [number, number, number] = [22, 120, 62];
+  const [from, to, t] =
+    clamped <= 50 ? [deepRed, neutral, clamped / 50] : [neutral, deepGreen, (clamped - 50) / 50];
+  const [r, g, b] = from.map((c, i) => Math.round(c + (to[i] - c) * t));
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
+function getPercentTextColor(percent: number): string {
+  return percent > 35 && percent < 65 ? "#2b2b2b" : "#ffffff";
+}
+
 export default function OverallStandingsTabPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
   const [standings, setStandings] = useState<PodiumStanding[]>([]);
@@ -107,13 +124,13 @@ export default function OverallStandingsTabPage() {
                       </Text>
                     </Box>
                   </Group>
-                  <Text size="sm" fw={700} ta="center" c={s.firsts > 0 ? "tangerine.7" : "forest.3"} style={{ flex: 0.6 }}>
+                  <Text size="sm" fw={700} ta="center" c={s.firsts > 0 ? "#d4af37" : "forest.3"} style={{ flex: 0.6 }}>
                     {s.firsts}
                   </Text>
-                  <Text size="sm" fw={600} ta="center" c={s.seconds > 0 ? "forest.7" : "forest.3"} style={{ flex: 0.6 }}>
+                  <Text size="sm" fw={600} ta="center" c={s.seconds > 0 ? "#a8a8a8" : "forest.3"} style={{ flex: 0.6 }}>
                     {s.seconds}
                   </Text>
-                  <Text size="sm" fw={600} ta="center" c={s.thirds > 0 ? "forest.2" : "forest.3"} style={{ flex: 0.6 }}>
+                  <Text size="sm" fw={600} ta="center" c={s.thirds > 0 ? "tangerine.7" : "forest.3"} style={{ flex: 0.6 }}>
                     {s.thirds}
                   </Text>
                   <Group gap={2} wrap="nowrap" justify="center" style={{ flex: 0.7 }}>
@@ -138,11 +155,24 @@ export default function OverallStandingsTabPage() {
                   ) : (
                     <Stack gap={8} pt="sm">
                       {stats.avgHotHandScore !== null && (
-                        <Group gap={8} wrap="nowrap">
+                        <Group gap={10} wrap="nowrap" align="center">
                           <IconFlame size={16} color="var(--mantine-color-tangerine-6)" />
+                          <Box
+                            style={{
+                              backgroundColor: getPercentColor(stats.avgHotHandScore),
+                              color: getPercentTextColor(stats.avgHotHandScore),
+                              borderRadius: 8,
+                              padding: "1px 7px",
+                              flexShrink: 0,
+                            }}
+                          >
+                            <Text size="sm" fw={800}>
+                              {stats.avgHotHandScore}
+                            </Text>
+                          </Box>
                           <Box style={{ flex: 1 }}>
-                            <Text size="xs" fw={700} c="forest.7">
-                              Average Hot Hand Score: {stats.avgHotHandScore}
+                            <Text size="xs" fw={700} c="forest.1">
+                              Average Hot Hand Score
                             </Text>
                             {stats.bestHotHandScore !== null && (
                               <Text size="10px" c="forest.3">
@@ -155,7 +185,7 @@ export default function OverallStandingsTabPage() {
                       {stats.favouritePlayerName && (
                         <Group gap={8} wrap="nowrap">
                           <IconStar size={16} color="var(--mantine-color-mint-6)" />
-                          <Text size="xs" fw={700} c="forest.7">
+                          <Text size="xs" fw={700} c="forest.1">
                             Favourite Player: {stats.favouritePlayerName}
                             <Text span size="10px" c="forest.3">
                               {" "}
@@ -167,7 +197,7 @@ export default function OverallStandingsTabPage() {
                       {stats.bestRoundScore !== null && (
                         <Group gap={8} wrap="nowrap">
                           <IconGolf size={16} color="var(--mantine-color-coral-6)" />
-                          <Text size="xs" fw={700} c="forest.7">
+                          <Text size="xs" fw={700} c="forest.1">
                             Best Round Ever: {formatToPar(stats.bestRoundScore)}
                             <Text span size="10px" c="forest.3">
                               {" "}
