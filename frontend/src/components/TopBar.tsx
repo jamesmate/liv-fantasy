@@ -60,7 +60,7 @@ export function TopBar() {
             window.open("https://jamdog.io", "_blank", "noopener,noreferrer");
           }}
           style={{
-            height: 28,
+            height: 40,
             width: "auto",
             flexShrink: 0,
             objectFit: "contain",
