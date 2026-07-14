@@ -39,6 +39,7 @@ import { SelectedLineup } from "../components/SelectedLineup";
 import { PixelGolferSprite } from "../components/sprites/PixelGolferSprite";
 import { getCountryFlagUrl } from "../utils/countryFlags";
 import { LoadingIndicator } from "../components/LoadingIndicator";
+import { BonusPickCard } from "../components/BonusPickCard";
 
 function formatToPar(totalToPar: number | null): string {
   if (totalToPar === null) return "-";
@@ -628,6 +629,8 @@ export default function PickTabPage() {
             );
           })}
         </Stack>
+
+        <BonusPickCard roundId={roundId} isLocked={isLocked} />
       </Box>
 
       {/* Fixed action bar - always visible, not part of the scrollable

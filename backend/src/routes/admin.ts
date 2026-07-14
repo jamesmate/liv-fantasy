@@ -4,6 +4,7 @@ import { requireMember, requireOwner } from "../middleware/auth";
 import { finalizeTournamentResults, overrideTournamentWin, ResultsError } from "../services/tournamentResults";
 import { updateMemberCareerStats } from "../services/careerStats";
 import { syncTournamentScores } from "../services/scoreSync";
+import { pickRandomCategory } from "../services/bonusPickSync";
 import { getLeaderboard } from "../adapters/espnGolf";
 import { hashPasscode } from "../utils/passcode";
 import DEFAULT_ROSTER from "../data/andalucia-roster.json";
@@ -38,8 +39,8 @@ adminRouter.post("/tournaments", async (req, res) => {
 
       for (let i = 1; i <= rounds; i++) {
         await client.query(
-          `insert into rounds (tournament_id, round_number, status) values ($1, $2, 'upcoming')`,
-          [tournamentId, i]
+          `insert into rounds (tournament_id, round_number, status, bonus_category) values ($1, $2, 'upcoming', $3)`,
+          [tournamentId, i, pickRandomCategory()]
         );
       }
       return t.rows[0];

@@ -278,3 +278,46 @@ create index if not exists idx_tournament_players_tournament on tournament_playe
 create index if not exists idx_rounds_tournament on rounds(tournament_id);
 create index if not exists idx_picks_round_member on picks(round_id, member_id);
 create index if not exists idx_scores_round on player_round_scores(round_id);
+
+-- ============================================================
+-- 5th "Bonus Pick" - a daily-category side bet, separate from the
+-- normal 4 no-repeat picks. See services/bonusPickSync.ts for the
+-- live scoring logic. Every round gets ONE randomly assigned
+-- category (same for the whole league, picked once, not per-member)
+-- from a fixed set of live-ticking categories - see BONUS_CATEGORIES
+-- in bonusPickSync.ts for the canonical list, kept in application
+-- code rather than a DB enum so the category set can evolve without
+-- a migration.
+-- ============================================================
+
+alter table rounds add column if not exists bonus_category text;
+
+-- Which ESPN "league" slug (pga | liv | eur | ...) to use when
+-- fetching the per-athlete competitorsummary endpoint for bonus pick
+-- scoring - the main leaderboard sync uses league=all and doesn't
+-- need this, but the competitorsummary endpoint requires a specific
+-- league in its URL path. Defaults to 'pga' (confirmed working for
+-- PGA/DP World co-sanctioned events) - override per-tournament if a
+-- pure LIV event turns out to need a different slug.
+alter table tournaments add column if not exists espn_league_slug text not null default 'pga';
+
+-- One bonus pick per member per round - unlike `picks`, there is
+-- deliberately NO no-repeat constraint here and no is_swap concept;
+-- any player in the pool is fair game every round regardless of
+-- whether they (or another team) already used them as a normal pick.
+create table if not exists bonus_picks (
+  id uuid primary key default gen_random_uuid(),
+  round_id uuid not null references rounds(id) on delete cascade,
+  member_id uuid not null references members(id) on delete cascade,
+  tournament_player_id uuid not null references tournament_players(id) on delete cascade,
+  points int not null default 0,
+  -- Small breakdown of how the points were earned, for showing "2
+  -- birdies, 1 bogey" style detail in the UI rather than just a bare
+  -- number - purely informational, not used in the points math itself
+  -- (which is recomputed fresh from ESPN data on every sync).
+  breakdown jsonb,
+  last_synced_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (round_id, member_id)
+);
+create index if not exists idx_bonus_picks_round on bonus_picks(round_id);

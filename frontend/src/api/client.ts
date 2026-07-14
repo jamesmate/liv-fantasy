@@ -117,6 +117,48 @@ export interface AuthResult {
   joinCode?: string;
 }
 
+export interface BonusEligiblePlayer {
+  id: string;
+  full_name: string;
+  pro_team_name: string | null;
+  country_code: string | null;
+  is_active: boolean;
+  inactive_reason: string | null;
+}
+
+export interface MyBonusPick {
+  category: string | null;
+  pick: {
+    id: string;
+    tournament_player_id: string;
+    full_name: string;
+    points: number;
+    breakdown: Record<string, number> | null;
+    last_synced_at: string | null;
+  } | null;
+}
+
+export const BONUS_CATEGORY_INFO: Record<string, { label: string; description: string; emoji: string }> = {
+  EAGLE: { label: "Eagle Hunter", description: "+25 points for every eagle (or better) scored today.", emoji: "🦅" },
+  BIRDIE: { label: "Birdie Machine", description: "+4 points for every birdie scored today.", emoji: "🐦" },
+  BOGEY: { label: "Bogey Watch", description: "+5 points for every bogey scored today.", emoji: "😬" },
+  DOUBLE_PLUS: {
+    label: "Chaos Agent",
+    description: "+10 points for every double bogey (or worse) scored today.",
+    emoji: "💥",
+  },
+  POSITIONS_GAINED: {
+    label: "Climber",
+    description: "+1 point per leaderboard position gained today.",
+    emoji: "📈",
+  },
+  POSITIONS_LOST: {
+    label: "Freefall",
+    description: "+1 point per leaderboard position lost today.",
+    emoji: "📉",
+  },
+};
+
 export interface PlayerOption {
   id: string;
   full_name: string;
@@ -359,6 +401,17 @@ export const api = {
     request<{ success: true }>(`/rounds/${roundId}/swap`, {
       method: "POST",
       body: JSON.stringify({ outgoingTournamentPlayerId, incomingTournamentPlayerId }),
+    }),
+
+  getBonusEligiblePlayers: (roundId: string) =>
+    request<BonusEligiblePlayer[]>(`/rounds/${roundId}/bonus-eligible-players`),
+
+  getMyBonusPick: (roundId: string) => request<MyBonusPick>(`/rounds/${roundId}/my-bonus-pick`),
+
+  submitBonusPick: (roundId: string, tournamentPlayerId: string) =>
+    request<{ success: true }>(`/rounds/${roundId}/bonus-pick`, {
+      method: "POST",
+      body: JSON.stringify({ tournamentPlayerId }),
     }),
 
   getNeedsSwap: (roundId: string) =>

@@ -5,6 +5,7 @@ import { picksRouter } from "./routes/picks";
 import { adminRouter } from "./routes/admin";
 import { query } from "./db/client";
 import { syncTournamentScores } from "./services/scoreSync";
+import { syncBonusPicksForRound } from "./services/bonusPickSync";
 
 // Safety net: Express 4 doesn't automatically catch errors thrown
 // inside async route handlers, and Node's default behavior since v15
@@ -74,6 +75,18 @@ async function runSyncForLiveTournaments() {
       // starving every OTHER live tournament of syncs too.
       try {
         await syncTournamentScores(t.id, t.espn_event_id);
+
+        // Bonus pick points - only rounds that actually have at least
+        // one bonus pick do any real work (see syncBonusPicksForRound),
+        // so it's cheap to just try every round of this tournament.
+        const rounds = await query<{ id: string }>(`select id from rounds where tournament_id = $1`, [t.id]);
+        for (const r of rounds.rows) {
+          try {
+            await syncBonusPicksForRound(r.id);
+          } catch (err) {
+            console.error(`[syncLoop] bonus pick sync failed for round ${r.id}, continuing:`, err);
+          }
+        }
       } catch (err) {
         console.error(`[syncLoop] tournament ${t.id} failed, continuing with the rest:`, err);
       }

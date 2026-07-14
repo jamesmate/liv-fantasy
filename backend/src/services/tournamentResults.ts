@@ -65,6 +65,23 @@ export async function finalizeTournamentResults(tournamentId: string) {
 
   const bestScore = standings.rows[0].total_to_par;
 
+  // Bonus pick points earned across the WHOLE tournament (all rounds
+  // summed), per member - these get ADDED on top of placement points,
+  // not blended into total_to_par/placement itself (see the "how
+  // should bonus points affect your score" decision: they only affect
+  // league standings points, never actual strokes/placement).
+  const bonusPointsResult = await query<{ member_id: string; bonus_total: string }>(
+    `select bp.member_id, sum(bp.points) as bonus_total
+       from bonus_picks bp
+       join rounds r on r.id = bp.round_id
+      where r.tournament_id = $1
+      group by bp.member_id`,
+    [tournamentId]
+  );
+  const bonusPointsByMember = new Map<string, number>(
+    bonusPointsResult.rows.map((r) => [r.member_id, Number(r.bonus_total)])
+  );
+
   await withTransaction(async (client) => {
     // Clear any prior finalization for this tournament so re-running is safe.
     await client.query(`delete from tournament_results where tournament_id = $1`, [tournamentId]);
@@ -91,7 +108,9 @@ export async function finalizeTournamentResults(tournamentId: string) {
       previousPlacement = placement;
 
       const isWin = row.total_to_par === bestScore;
-      const points = calculatePoints(placement, standings.rows.length);
+      const placementPoints = calculatePoints(placement, standings.rows.length);
+      const bonusPoints = bonusPointsByMember.get(row.member_id) ?? 0;
+      const points = placementPoints + bonusPoints;
       await client.query(
         `insert into tournament_results
            (tournament_id, league_id, member_id, team_name, total_to_par, placement, is_win, points)

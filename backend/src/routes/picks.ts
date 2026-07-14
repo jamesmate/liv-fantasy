@@ -8,6 +8,7 @@ import {
 } from "../services/picks";
 import { requireMember } from "../middleware/auth";
 import { maybeSync } from "../services/scoreSync";
+import { syncBonusPicksForRound } from "../services/bonusPickSync";
 
 export const picksRouter = Router();
 
@@ -222,4 +223,96 @@ picksRouter.post("/:roundId/swap", requireMember, async (req, res) => {
     console.error(err);
     res.status(500).json({ error: "Failed to swap pick." });
   }
+});
+
+// GET /rounds/:roundId/bonus-eligible-players
+// Same player pool as available-players, but WITHOUT the no-repeat
+// exclusion - the bonus pick is exempt from that rule entirely, any
+// player in the tournament is fair game every round.
+picksRouter.get("/:roundId/bonus-eligible-players", requireMember, async (req, res) => {
+  const { roundId } = req.params;
+
+  const roundRes = await query<{ tournament_id: string }>(
+    `select tournament_id from rounds where id = $1`,
+    [roundId]
+  );
+  const tournamentId = roundRes.rows[0]?.tournament_id;
+  if (!tournamentId) return res.status(404).json({ error: "Round not found." });
+
+  const players = await query(
+    `select tp.id, tp.full_name, tp.pro_team_name, tp.country_code, tp.is_active, tp.inactive_reason
+       from tournament_players tp
+      where tp.tournament_id = $1
+      order by tp.full_name asc`,
+    [tournamentId]
+  );
+  res.json(players.rows);
+});
+
+// GET /rounds/:roundId/my-bonus-pick
+// This member's bonus pick for this round (if any), the round's
+// assigned category, and live points. Triggers a throttled sync (same
+// maybeSync pattern as normal scores) so viewing the pick screen keeps
+// bonus points fresh without needing a dedicated poll.
+picksRouter.get("/:roundId/my-bonus-pick", requireMember, async (req, res) => {
+  const { roundId } = req.params;
+  const memberId = req.member!.id;
+
+  const roundRes = await query<{ bonus_category: string | null }>(
+    `select bonus_category from rounds where id = $1`,
+    [roundId]
+  );
+  if (roundRes.rows.length === 0) return res.status(404).json({ error: "Round not found." });
+
+  syncBonusPicksForRound(roundId).catch((err) =>
+    console.error(`[my-bonus-pick] background sync failed for round ${roundId}:`, err)
+  );
+
+  const pick = await query<{
+    id: string;
+    tournament_player_id: string;
+    full_name: string;
+    points: number;
+    breakdown: Record<string, number> | null;
+    last_synced_at: string | null;
+  }>(
+    `select bp.id, bp.tournament_player_id, tp.full_name, bp.points, bp.breakdown, bp.last_synced_at
+       from bonus_picks bp
+       join tournament_players tp on tp.id = bp.tournament_player_id
+      where bp.round_id = $1 and bp.member_id = $2`,
+    [roundId, memberId]
+  );
+
+  res.json({
+    category: roundRes.rows[0].bonus_category,
+    pick: pick.rows[0] ?? null,
+  });
+});
+
+// POST /rounds/:roundId/bonus-pick  { tournamentPlayerId }
+// Sets (or changes) this member's bonus pick for the round. No
+// no-repeat validation - any player is always eligible. Respects the
+// round's lock time same as normal picks.
+picksRouter.post("/:roundId/bonus-pick", requireMember, async (req, res) => {
+  const { roundId } = req.params;
+  const { tournamentPlayerId } = req.body;
+  const memberId = req.member!.id;
+  if (!tournamentPlayerId) {
+    return res.status(400).json({ error: "tournamentPlayerId is required." });
+  }
+
+  const round = await query<{ locks_at: string | null }>(`select locks_at from rounds where id = $1`, [roundId]);
+  if (round.rows.length === 0) return res.status(404).json({ error: "Round not found." });
+  if (round.rows[0].locks_at && new Date(round.rows[0].locks_at) < new Date()) {
+    return res.status(400).json({ error: "This round is locked - bonus pick can no longer be changed." });
+  }
+
+  await query(
+    `insert into bonus_picks (round_id, member_id, tournament_player_id)
+     values ($1, $2, $3)
+     on conflict (round_id, member_id) do update set tournament_player_id = excluded.tournament_player_id`,
+    [roundId, memberId, tournamentPlayerId]
+  );
+
+  res.json({ success: true });
 });
