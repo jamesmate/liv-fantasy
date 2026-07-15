@@ -348,14 +348,15 @@ leagueRouter.get("/:id/recap", async (req, res) => {
 // Returns the latest tournament for this league, same scoping as
 // /standings.
 leagueRouter.get("/:id/leaderboard", async (req, res) => {
-  const tournament = await query<{ id: string; total_rounds: number }>(
-    `select id, total_rounds from tournaments where league_id = $1 order by created_at desc limit 1`,
+  const tournament = await query<{ id: string; name: string; total_rounds: number }>(
+    `select id, name, total_rounds from tournaments where league_id = $1 order by created_at desc limit 1`,
     [req.params.id]
   );
   if (tournament.rows.length === 0) {
     return res.json({ tournament: null, teams: [] });
   }
   const tournamentId = tournament.rows[0].id;
+  const tournamentName = tournament.rows[0].name;
   const totalRounds = tournament.rows[0].total_rounds;
 
   const teams = await query<{
@@ -569,7 +570,7 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
   // convention as golf leaderboards.
   result.sort((a, b) => a.overallTotal - b.overallTotal);
 
-  res.json({ tournament: { id: tournamentId, totalRounds }, teams: result });
+  res.json({ tournament: { id: tournamentId, name: tournamentName, totalRounds }, teams: result });
 });
 
 // GET /leagues/:id/standings - latest tournament's running totals

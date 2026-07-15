@@ -34,6 +34,7 @@ interface SelectedLineupProps {
   slots: LineupSlot[]; // up to 4
   showScores?: boolean;
   teamName?: string | null;
+  tournamentName?: string | null;
   roundNumber?: number;
   isLocked?: boolean;
   /** Name of the picked player with the best score this round, if any - they render in the golf-club pose. */
@@ -57,6 +58,7 @@ export function SelectedLineup({
   slots,
   showScores = false,
   teamName,
+  tournamentName,
   roundNumber,
   isLocked,
   topScorerName,
@@ -102,11 +104,13 @@ export function SelectedLineup({
               fw={700}
               size="xs"
               c="mint.3"
+              lineClamp={1}
               style={{
                 fontFamily: "'Poppins', sans-serif",
                 textShadow: "1px 1px 2px rgba(0,0,0,0.6)",
               }}
             >
+              {tournamentName ? `${tournamentName} · ` : ""}
               Round {roundNumber}
               {isLocked ? " · Locked" : ""}
             </Text>

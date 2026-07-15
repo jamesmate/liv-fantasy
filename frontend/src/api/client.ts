@@ -257,7 +257,7 @@ export interface Headline {
 }
 
 export interface LeaderboardResponse {
-  tournament: { id: string; totalRounds: number } | null;
+  tournament: { id: string; name: string; totalRounds: number } | null;
   teams: LeaderboardTeam[];
 }
 

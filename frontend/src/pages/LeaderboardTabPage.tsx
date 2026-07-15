@@ -97,6 +97,9 @@ export default function LeaderboardTabPage() {
   return (
     <Box p="md">
       {leagueId && <TournamentRecap leagueId={leagueId} />}
+      <Text size="lg" fw={800} c="forest.9" mb="xs">
+        {data.tournament.name}
+      </Text>
       <Stack gap={0}>
         {/* Header row */}
         <Group

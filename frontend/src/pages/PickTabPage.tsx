@@ -363,6 +363,7 @@ export default function PickTabPage() {
           slots={lineupSlots}
           showScores={showScores}
           teamName={teamName}
+          tournamentName={tournament?.name}
           roundNumber={activeRoundNumber}
           isLocked={isLocked}
           topScorerName={topScorerName}
