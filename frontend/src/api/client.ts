@@ -141,9 +141,9 @@ export interface MyBonusPick {
 export const BONUS_CATEGORY_INFO: Record<string, { label: string; description: string; emoji: string }> = {
   EAGLE: { label: "Eagle Hunter", description: "+25 points for every eagle (or better) scored today.", emoji: "🦅" },
   BIRDIE: { label: "Birdie Machine", description: "+4 points for every birdie scored today.", emoji: "🐦" },
-  BOGEY: { label: "Bogey Watch", description: "+5 points for every bogey scored today.", emoji: "😬" },
+  BOGEY: { label: "Bogey Boy", description: "+5 points for every bogey scored today.", emoji: "😬" },
   DOUBLE_PLUS: {
-    label: "Chaos Agent",
+    label: "Bogey Monster",
     description: "+10 points for every double bogey (or worse) scored today.",
     emoji: "💥",
   },
@@ -153,7 +153,7 @@ export const BONUS_CATEGORY_INFO: Record<string, { label: string; description: s
     emoji: "📈",
   },
   POSITIONS_LOST: {
-    label: "Freefall",
+    label: "Bottler",
     description: "+1 point per leaderboard position lost today.",
     emoji: "📉",
   },

@@ -19,10 +19,10 @@ export interface BonusCategory {
 export const BONUS_CATEGORIES: BonusCategory[] = [
   { key: "EAGLE", label: "Eagle Hunter", description: "+25 points for every eagle (or better) scored today." },
   { key: "BIRDIE", label: "Birdie Machine", description: "+4 points for every birdie scored today." },
-  { key: "BOGEY", label: "Bogey Watch", description: "+5 points for every bogey scored today." },
+  { key: "BOGEY", label: "Bogey Boy", description: "+5 points for every bogey scored today." },
   {
     key: "DOUBLE_PLUS",
-    label: "Chaos Agent",
+    label: "Bogey Monster",
     description: "+10 points for every double bogey (or worse) scored today.",
   },
   {
@@ -32,7 +32,7 @@ export const BONUS_CATEGORIES: BonusCategory[] = [
   },
   {
     key: "POSITIONS_LOST",
-    label: "Freefall",
+    label: "Bottler",
     description: "+1 point for every leaderboard position lost today (relative to where they started the round).",
   },
 ];
