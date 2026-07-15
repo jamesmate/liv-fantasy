@@ -1,5 +1,6 @@
 import { Group, Text, Stack, Box } from "@mantine/core";
 import { AnimatedGolferSprite } from "./sprites/AnimatedGolferSprite";
+import lineupBackground from "../assets/lineup-background.png";
 
 // Same raw-score red-neutral-green gradient used on the player list
 // in PickTabPage - kept local here (small, cheap to duplicate) rather
@@ -66,7 +67,7 @@ export function SelectedLineup({
         position: "relative",
         width: "100%",
         height: "100%",
-        backgroundImage: "url(/lineup-background.png)",
+        backgroundImage: `url(${lineupBackground})`,
         backgroundSize: "cover",
         backgroundPosition: "center 65%",
         overflow: "hidden",
