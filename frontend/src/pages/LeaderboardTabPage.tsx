@@ -360,7 +360,7 @@ function TeamRow({
                     </Text>
                   </Group>
                   <Text size="xs" fw={700} c="tangerine.7">
-                    +{round.bonusPick.points}
+                    {round.bonusPick.points}pts
                   </Text>
                 </Group>
               )}

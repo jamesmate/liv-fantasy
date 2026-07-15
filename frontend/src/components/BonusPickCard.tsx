@@ -3,6 +3,7 @@ import { Box, Card, Text, Group, Stack, Modal, TextInput, ScrollArea, UnstyledBu
 import { IconSearch, IconBan } from "@tabler/icons-react";
 import { api, BonusEligiblePlayer, MyBonusPick, BONUS_CATEGORY_INFO } from "../api/client";
 import { getCountryFlagUrl } from "../utils/countryFlags";
+import { AnimatedGolferSprite } from "./sprites/AnimatedGolferSprite";
 
 interface BonusPickCardProps {
   roundId: string | null;
@@ -76,8 +77,13 @@ export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
           p={8}
           style={{ border: "2px dotted var(--mantine-color-tangerine-5)" }}
         >
-          <Group justify="space-between" wrap="nowrap" gap={8}>
+          <Group justify="space-between" wrap="nowrap" gap={8} mb={data.pick ? 4 : 0}>
             <Group gap={6} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+              {data.pick && (
+                <Box style={{ flexShrink: 0 }}>
+                  <AnimatedGolferSprite playerName={data.pick.full_name} size={32} runOn={false} />
+                </Box>
+              )}
               <Text size="md">{categoryInfo?.emoji ?? "⭐"}</Text>
               <Box style={{ minWidth: 0 }}>
                 <Text size="xs" fw={700} c="forest.9" lineClamp={1}>
@@ -91,7 +97,7 @@ export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
             <Group gap={6} wrap="nowrap" style={{ flexShrink: 0 }}>
               {data.pick && (
                 <Badge size="lg" color="tangerine" variant="filled">
-                  +{data.pick.points}
+                  {data.pick.points}pts
                 </Badge>
               )}
               <Button
@@ -105,6 +111,9 @@ export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
               </Button>
             </Group>
           </Group>
+          <Text size="10px" c="forest.4" lineClamp={2}>
+            {categoryInfo?.description}
+          </Text>
         </Card>
       </Box>
 
