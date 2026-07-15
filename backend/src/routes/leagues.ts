@@ -398,6 +398,21 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
     [tournamentId]
   );
 
+  const bonusPicksResult = await query<{
+    member_id: string;
+    round_number: number;
+    player_name: string;
+    points: number;
+    bonus_category: string | null;
+  }>(
+    `select bp.member_id, r.round_number, tp.full_name as player_name, bp.points, r.bonus_category
+       from bonus_picks bp
+       join rounds r on r.id = bp.round_id
+       join tournament_players tp on tp.id = bp.tournament_player_id
+      where r.tournament_id = $1`,
+    [tournamentId]
+  );
+
   // Every played round for every player who's been picked at least
   // once - used both for the sparklines (full round-by-round line)
   // and for computing "was this the round they were picked for their
@@ -472,15 +487,20 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
   const result = teams.rows.map((team) => {
     const teamRoundTotals = roundTotals.rows.filter((r) => r.member_id === team.member_id);
     const teamPicks = picks.rows.filter((p) => p.member_id === team.member_id);
+    const teamBonusPicks = bonusPicksResult.rows.filter((p) => p.member_id === team.member_id);
 
     const rounds = Array.from({ length: totalRounds }, (_, i) => {
       const roundNumber = i + 1;
       const totalRow = teamRoundTotals.find((r) => r.round_number === roundNumber);
       const roundPicks = teamPicks.filter((p) => p.round_number === roundNumber);
+      const bonusPick = teamBonusPicks.find((p) => p.round_number === roundNumber) ?? null;
       return {
         roundNumber,
         total: totalRow?.round_total ?? null,
         fullyScored: totalRow?.round_fully_scored ?? false,
+        bonusPick: bonusPick
+          ? { playerName: bonusPick.player_name, points: bonusPick.points, category: bonusPick.bonus_category }
+          : null,
         picks: roundPicks.map((p) => {
           const timing = getTimingRank(p.tournament_player_id, p.round_number);
           return {

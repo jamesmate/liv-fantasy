@@ -13,7 +13,7 @@ import {
   ActionIcon,
 } from "@mantine/core";
 import { IconChevronDown, IconChevronUp, IconBolt, IconInfoCircle } from "@tabler/icons-react";
-import { api, LeaderboardResponse, LeaderboardTeam } from "../api/client";
+import { api, LeaderboardResponse, LeaderboardTeam, BONUS_CATEGORY_INFO } from "../api/client";
 import { getCountryFlagUrl } from "../utils/countryFlags";
 import { LoadingIndicator } from "../components/LoadingIndicator";
 import { RoundSparkline } from "../components/RoundSparkline";
@@ -339,6 +339,30 @@ function TeamRow({
                     );
                   })}
                 </Stack>
+              )}
+              {round.bonusPick && (
+                <Group
+                  justify="space-between"
+                  wrap="nowrap"
+                  pl="xs"
+                  mt={2}
+                  pt={2}
+                  style={{ borderTop: "1px dashed var(--mantine-color-tangerine-4)" }}
+                >
+                  <Group gap={4} wrap="nowrap" style={{ minWidth: 0 }}>
+                    <Text size="10px">{BONUS_CATEGORY_INFO[round.bonusPick.category ?? ""]?.emoji ?? "⭐"}</Text>
+                    <Text size="xs" c="tangerine.7" fw={600} lineClamp={1}>
+                      {round.bonusPick.playerName}
+                      <Text span c="forest.3">
+                        {" "}
+                        · {BONUS_CATEGORY_INFO[round.bonusPick.category ?? ""]?.label ?? "Bonus"}
+                      </Text>
+                    </Text>
+                  </Group>
+                  <Text size="xs" fw={700} c="tangerine.7">
+                    +{round.bonusPick.points}
+                  </Text>
+                </Group>
               )}
             </Box>
           ))}

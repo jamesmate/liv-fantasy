@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { Box, Card, Text, Group, Stack, Modal, TextInput, ScrollArea, UnstyledButton, Badge } from "@mantine/core";
+import { Box, Card, Text, Group, Stack, Modal, TextInput, ScrollArea, UnstyledButton, Badge, Button } from "@mantine/core";
 import { IconSearch, IconBan } from "@tabler/icons-react";
 import { api, BonusEligiblePlayer, MyBonusPick, BONUS_CATEGORY_INFO } from "../api/client";
 import { getCountryFlagUrl } from "../utils/countryFlags";
@@ -10,13 +10,14 @@ interface BonusPickCardProps {
 }
 
 /**
- * The 5th "bonus pick" - deliberately visually separated from the 4
- * normal picks above it (different card, own border/background), and
- * functionally different in two ways: no no-repeat restriction (any
- * player is always eligible, see bonus-eligible-players), and it's
- * scored against a category randomized once per round for the whole
- * league (see BONUS_CATEGORY_INFO / bonusPickSync.ts) rather than raw
- * golf score.
+ * The 5th "bonus pick" - sits right below the main lineup zone, always
+ * visible without scrolling (previously buried at the bottom of the
+ * scrollable player list, which made it easy to miss entirely).
+ * Visually distinct from the 4 normal picks via the dotted tangerine
+ * border, but otherwise a compact single-row card matching the list's
+ * style. No no-repeat restriction here - any player is always
+ * eligible, scored against a category randomized once per round for
+ * the whole league (see BONUS_CATEGORY_INFO / bonusPickSync.ts).
  */
 export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
   const [data, setData] = useState<MyBonusPick | null>(null);
@@ -30,6 +31,9 @@ export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
     api.getMyBonusPick(roundId).then(setData).catch(() => {});
   }, [roundId]);
 
+  // Explicit "Pick" button press is what reveals the player list - the
+  // card itself is never directly tappable, so there's no accidental
+  // opening while just glancing at the current bonus pick/score.
   function openPicker() {
     if (!roundId || isLocked) return;
     api.getBonusEligiblePlayers(roundId).then(setPlayers).catch(() => {});
@@ -46,8 +50,8 @@ export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
       setPickerOpen(false);
       setSearch("");
     } catch {
-      // Silent - the picker just stays open, matching how the main
-      // pick list handles a failed selection.
+      // Silent - picker just stays open, matching how the main pick
+      // list handles a failed selection.
     } finally {
       setSaving(false);
     }
@@ -64,50 +68,45 @@ export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
 
   return (
     <>
-      <Card
-        bg="forest.8"
-        p="md"
-        mt="lg"
-        style={{ border: "2px dashed var(--mantine-color-tangerine-5)" }}
-      >
-        <Text size="10px" fw={700} c="mint.3" tt="uppercase" mb={4}>
-          Bonus Pick - Any Player Eligible
+      <Box px="md" pt={6} pb={2} style={{ flexShrink: 0 }}>
+        <Text size="9px" fw={700} c="tangerine.7" tt="uppercase" mb={2}>
+          Bonus
         </Text>
-        <Group gap={8} mb={8} wrap="nowrap">
-          <Text size="lg">{categoryInfo?.emoji ?? "⭐"}</Text>
-          <Box style={{ flex: 1 }}>
-            <Text size="sm" fw={800} c="white">
-              {categoryInfo?.label ?? data.category}
-            </Text>
-            <Text size="10px" c="forest.5">
-              {categoryInfo?.description}
-            </Text>
-          </Box>
-        </Group>
-
-        <UnstyledButton
-          onClick={openPicker}
-          disabled={isLocked}
-          style={{ width: "100%", opacity: isLocked ? 0.7 : 1 }}
+        <Card
+          p={8}
+          style={{ border: "2px dotted var(--mantine-color-tangerine-5)" }}
         >
-          <Card bg="forest.7" p="sm">
-            {data.pick ? (
-              <Group justify="space-between" wrap="nowrap">
-                <Text size="sm" fw={600} c="forest.9">
-                  {data.pick.full_name}
+          <Group justify="space-between" wrap="nowrap" gap={8}>
+            <Group gap={6} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
+              <Text size="md">{categoryInfo?.emoji ?? "⭐"}</Text>
+              <Box style={{ minWidth: 0 }}>
+                <Text size="xs" fw={700} c="forest.9" lineClamp={1}>
+                  {categoryInfo?.label ?? data.category}
                 </Text>
+                <Text size="10px" c="forest.4" lineClamp={1}>
+                  {data.pick ? data.pick.full_name : "No pick yet"}
+                </Text>
+              </Box>
+            </Group>
+            <Group gap={6} wrap="nowrap" style={{ flexShrink: 0 }}>
+              {data.pick && (
                 <Badge size="lg" color="tangerine" variant="filled">
                   +{data.pick.points}
                 </Badge>
-              </Group>
-            ) : (
-              <Text size="sm" c="forest.3" ta="center">
-                {isLocked ? "No bonus pick made" : "Tap to pick a bonus player"}
-              </Text>
-            )}
-          </Card>
-        </UnstyledButton>
-      </Card>
+              )}
+              <Button
+                size="compact-xs"
+                variant={data.pick ? "light" : "filled"}
+                color="tangerine"
+                disabled={isLocked}
+                onClick={openPicker}
+              >
+                {data.pick ? "Change" : "Pick"}
+              </Button>
+            </Group>
+          </Group>
+        </Card>
+      </Box>
 
       <Modal
         opened={pickerOpen}

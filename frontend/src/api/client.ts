@@ -198,6 +198,7 @@ export interface LeaderboardRound {
   roundNumber: number;
   total: number | null;
   fullyScored: boolean;
+  bonusPick: { playerName: string; points: number; category: string | null } | null;
   picks: LeaderboardRoundPick[];
 }
 

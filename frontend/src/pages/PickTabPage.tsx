@@ -401,6 +401,8 @@ export default function PickTabPage() {
         </Box>
       </Box>
 
+      <BonusPickCard roundId={roundId} isLocked={isLocked} />
+
       {/* Bottom 2/3: scrollable player list */}
       <Box style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 16px" }}>
         <Stack gap={6}>
@@ -629,8 +631,6 @@ export default function PickTabPage() {
             );
           })}
         </Stack>
-
-        <BonusPickCard roundId={roundId} isLocked={isLocked} />
       </Box>
 
       {/* Fixed action bar - always visible, not part of the scrollable
