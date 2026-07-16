@@ -6,16 +6,6 @@ export interface BonusCategory {
   description: string;
 }
 
-/**
- * All six categories are deliberately LIVE-TICKING - points update
- * hole by hole (or position by position) as the round is played,
- * rather than only resolving at the end of the round. Categories that
- * can only be judged once a round is complete (bogey-free round,
- * lowest round of the day, etc) were considered and dropped
- * specifically because they'd leave the bonus pick showing zero all
- * day with no feedback until the round finished - the whole point of
- * this feature is watching the points climb in real time.
- */
 export const BONUS_CATEGORIES: BonusCategory[] = [
   { key: "EAGLE", label: "Eagle Hunter", description: "+25 points for every eagle (or better) scored today." },
   { key: "BIRDIE", label: "Birdie Machine", description: "+4 points for every birdie scored today." },
@@ -37,8 +27,16 @@ export const BONUS_CATEGORIES: BonusCategory[] = [
   },
 ];
 
+const POSITION_CATEGORIES = new Set(["POSITIONS_GAINED", "POSITIONS_LOST"]);
+const HOLE_CATEGORIES = new Set(["EAGLE", "BIRDIE", "BOGEY", "DOUBLE_PLUS"]);
+const PER_OCCURRENCE: Record<string, number> = { EAGLE: 25, BIRDIE: 4, BOGEY: 5, DOUBLE_PLUS: 10 };
+
 export function pickRandomCategory(): string {
   return BONUS_CATEGORIES[Math.floor(Math.random() * BONUS_CATEGORIES.length)].key;
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 interface EspnLinescore {
@@ -49,8 +47,6 @@ interface EspnLinescore {
 
 interface EspnCompetitorRound {
   period: number;
-  startPosition?: number;
-  currentPosition?: number;
   linescores?: EspnLinescore[];
 }
 
@@ -59,30 +55,30 @@ interface EspnCompetitorSummary {
 }
 
 /**
- * Pulls one player's full tournament summary (hole-by-hole scores,
- * per-round leaderboard position) from ESPN. This is a DIFFERENT
- * endpoint from the main leaderboard sync (site.web.api.espn.com/.../
- * leaderboard) - that one only has per-round TOTALS, no hole detail.
- * This one is per-athlete, which is exactly why bonus pick scoring
- * only ever calls it for players who were actually bonus-picked that
- * round (at most one per team), not the whole ~150-player field.
+ * Pulls one player's hole-by-hole scores from ESPN, for the HOLE-BASED
+ * categories only (Eagle/Birdie/Bogey/Bogey Monster) - Positions
+ * Gained/Lost no longer uses this endpoint at all, see below.
+ *
+ * This endpoint has proven unreliable from this server specifically:
+ * confirmed via side-by-side testing that an identical request for a
+ * player with a confirmed double bogey returned full data from a
+ * normal machine but an empty rounds array from here, even after
+ * adding full browser-style headers. The leading remaining theory is
+ * ESPN's CDN rate-limiting/throttling rapid same-endpoint requests
+ * from a single source - ADD_DELAY_MS below spaces consecutive calls
+ * out to test that. If hole-based categories are still unreliable
+ * even with this, treat that as evidence it's an IP-level block
+ * rather than a burst/rate issue, which would need a different
+ * approach entirely (e.g. routing through a residential proxy).
  */
+const REQUEST_DELAY_MS = 2000;
+
 async function fetchCompetitorSummary(
   leagueSlug: string,
   espnEventId: string,
   espnPlayerId: string
 ): Promise<EspnCompetitorSummary | null> {
   const url = `https://site.web.api.espn.com/apis/site/v2/sports/golf/${leagueSlug}/leaderboard/${espnEventId}/competitorsummary/${espnPlayerId}?region=us&lang=en`;
-  // ESPN's CDN appears to serve a stripped-down (empty rounds/
-  // linescores) response to requests that don't look like they're
-  // coming from a real browser - confirmed by comparing side-by-side:
-  // a plain `curl` with no special headers got full hole-by-hole
-  // data, while this server's fetch() (Node's default identity, no
-  // User-Agent at all) got an empty rounds array for the exact same
-  // player/event. Sending a realistic browser User-Agent (and the
-  // headers a browser would normally include) resolves it - this
-  // isn't deep fingerprint evasion, just matching what curl/a browser
-  // already sends by default and Node's fetch doesn't.
   const res = await fetch(url, {
     headers: {
       accept: "application/json, text/plain, */*",
@@ -100,34 +96,11 @@ async function fetchCompetitorSummary(
   return data.competitor ?? null;
 }
 
-/**
- * Computes this player's bonus points for ONE round, given the
- * category assigned to that round. Reads strokes-vs-par directly
- * (rather than trusting ESPN's own scoreType.name string) so eagles,
- * albatrosses, etc all fall out of the same simple comparison instead
- * of needing to match every possible label ESPN might use.
- */
-function calculateBonusPoints(
+function calculateHolePoints(
   category: string,
   roundData: EspnCompetitorRound | undefined
 ): { points: number; breakdown: Record<string, number> } {
-  if (!roundData) return { points: 0, breakdown: {} };
-
-  if (category === "POSITIONS_GAINED" || category === "POSITIONS_LOST") {
-    const { startPosition, currentPosition } = roundData;
-    // Round 1 (and any round with no prior day) has no meaningful
-    // "start" position to compare against - degrade to 0 rather than
-    // erroring or producing a nonsense number.
-    if (startPosition === undefined || currentPosition === undefined) {
-      return { points: 0, breakdown: {} };
-    }
-    const gained = Math.max(0, startPosition - currentPosition);
-    const lost = Math.max(0, currentPosition - startPosition);
-    const positions = category === "POSITIONS_GAINED" ? gained : lost;
-    return { points: positions, breakdown: { positions } };
-  }
-
-  const holes = roundData.linescores ?? [];
+  const holes = roundData?.linescores ?? [];
   let count = 0;
   for (const hole of holes) {
     const diff = hole.value - hole.par;
@@ -136,18 +109,16 @@ function calculateBonusPoints(
     else if (category === "BOGEY" && diff === 1) count++;
     else if (category === "DOUBLE_PLUS" && diff >= 2) count++;
   }
-
-  const perOccurrence: Record<string, number> = { EAGLE: 25, BIRDIE: 4, BOGEY: 5, DOUBLE_PLUS: 10 };
-  const points = count * (perOccurrence[category] ?? 0);
-  return { points, breakdown: { count } };
+  return { points: count * (PER_OCCURRENCE[category] ?? 0), breakdown: { count } };
 }
 
 /**
  * Syncs live bonus points for every bonus pick made on a given round.
- * Only fetches ESPN data for the DISTINCT players actually picked
- * (usually far fewer than the full field), and only for rounds that
- * actually have at least one bonus pick - a round nobody used the
- * bonus slot on costs nothing to skip.
+ *
+ * Deliberately does NOTHING for a round that hasn't actually started
+ * yet (no player_round_scores rows with a real score for it) - only
+ * the CURRENT live round should ever show non-zero bonus activity,
+ * not future rounds sitting at a stale/misleading zero.
  */
 export async function syncBonusPicksForRound(roundId: string): Promise<void> {
   const roundResult = await query<{
@@ -164,59 +135,87 @@ export async function syncBonusPicksForRound(roundId: string): Promise<void> {
     [roundId]
   );
   const round = roundResult.rows[0];
-  if (!round || !round.bonus_category || !round.espn_event_id) {
-    console.log(
-      `[bonusPickSync] skipping round ${roundId} - round=${!!round} category=${round?.bonus_category} espnEventId=${round?.espn_event_id}`
-    );
-    return;
-  }
+  if (!round || !round.bonus_category || !round.espn_event_id) return;
 
-  const picksResult = await query<{ id: string; espn_player_id: string | null }>(
-    `select bp.id, tp.espn_player_id
+  // Has this round actually started for ANYONE yet? If not, there's
+  // nothing meaningful to sync - skip entirely rather than computing
+  // (and storing) a round of zeroes for a round that hasn't teed off.
+  const startedCheck = await query<{ count: string }>(
+    `select count(*) from player_round_scores where round_id = $1 and score_to_par is not null`,
+    [roundId]
+  );
+  if (Number(startedCheck.rows[0].count) === 0) return;
+
+  const picksResult = await query<{ id: string; tournament_player_id: string; espn_player_id: string | null }>(
+    `select bp.id, bp.tournament_player_id, tp.espn_player_id
        from bonus_picks bp
        join tournament_players tp on tp.id = bp.tournament_player_id
       where bp.round_id = $1`,
     [roundId]
   );
+  if (picksResult.rows.length === 0) return;
+
   console.log(
     `[bonusPickSync] round ${roundId} (round ${round.round_number}, category ${round.bonus_category}): found ${picksResult.rows.length} bonus pick(s)`
   );
-  if (picksResult.rows.length === 0) return;
+
+  if (POSITION_CATEGORIES.has(round.bonus_category)) {
+    // Sourced entirely from player_round_scores (populated by the
+    // main, reliably-working leaderboard sync) - no ESPN call needed
+    // here at all.
+    for (const pick of picksResult.rows) {
+      const posResult = await query<{ start_position: number | null; current_position: number | null }>(
+        `select start_position, current_position from player_round_scores where round_id = $1 and tournament_player_id = $2`,
+        [roundId, pick.tournament_player_id]
+      );
+      const row = posResult.rows[0];
+      let points = 0;
+      if (row && row.start_position !== null && row.current_position !== null) {
+        const gained = Math.max(0, row.start_position - row.current_position);
+        const lost = Math.max(0, row.current_position - row.start_position);
+        points = round.bonus_category === "POSITIONS_GAINED" ? gained : lost;
+      }
+      await query(`update bonus_picks set points = $1, breakdown = $2, last_synced_at = now() where id = $3`, [
+        points,
+        JSON.stringify({ startPosition: row?.start_position ?? null, currentPosition: row?.current_position ?? null }),
+        pick.id,
+      ]);
+    }
+    return;
+  }
+
+  if (!HOLE_CATEGORIES.has(round.bonus_category)) return;
 
   // Dedupe - if multiple members bonus-picked the same player this
-  // round (very likely in a small league), only fetch ESPN once for
-  // that player, not once per member who picked them.
+  // round, only fetch ESPN once for that player.
   const byPlayer = new Map<string, { id: string; espn_player_id: string }[]>();
   for (const p of picksResult.rows) {
-    if (!p.espn_player_id) {
-      console.error(`[bonusPickSync] bonus pick ${p.id} has no espn_player_id on its tournament_players row - skipping`);
-      continue;
-    }
+    if (!p.espn_player_id) continue;
     const list = byPlayer.get(p.espn_player_id) ?? [];
     list.push({ id: p.id, espn_player_id: p.espn_player_id });
     byPlayer.set(p.espn_player_id, list);
   }
 
+  let first = true;
   for (const [espnPlayerId, bonusPickRows] of byPlayer) {
+    if (!first) await sleep(REQUEST_DELAY_MS); // space out requests - see REQUEST_DELAY_MS comment above
+    first = false;
     try {
       const summary = await fetchCompetitorSummary(round.espn_league_slug, round.espn_event_id, espnPlayerId);
       const roundData = summary?.rounds?.find((r) => r.period === round.round_number);
-      const { points, breakdown } = calculateBonusPoints(round.bonus_category, roundData);
+      const { points, breakdown } = calculateHolePoints(round.bonus_category, roundData);
       console.log(
-        `[bonusPickSync] player ${espnPlayerId} round ${round.round_number}: roundDataFound=${!!roundData} holesFound=${roundData?.linescores?.length ?? 0} availablePeriods=${JSON.stringify(summary?.rounds?.map((r) => r.period) ?? [])} -> ${points}pts`,
-        breakdown
+        `[bonusPickSync] player ${espnPlayerId} round ${round.round_number}: holesFound=${roundData?.linescores?.length ?? 0} -> ${points}pts`
       );
-
       for (const pick of bonusPickRows) {
-        await query(
-          `update bonus_picks set points = $1, breakdown = $2, last_synced_at = now() where id = $3`,
-          [points, JSON.stringify(breakdown), pick.id]
-        );
+        await query(`update bonus_picks set points = $1, breakdown = $2, last_synced_at = now() where id = $3`, [
+          points,
+          JSON.stringify(breakdown),
+          pick.id,
+        ]);
       }
     } catch (err) {
       console.error(`[bonusPickSync] failed for player ${espnPlayerId} on round ${roundId}:`, err);
-      // Keep going with other players rather than letting one bad
-      // fetch stop the rest of the round's bonus picks from syncing.
     }
   }
 }

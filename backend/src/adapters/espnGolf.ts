@@ -59,6 +59,12 @@ export interface NormalizedPlayerRound {
   thru: number; // holes completed in the current/most recent round, 0-18
   teeTime: string | null; // ISO timestamp - meaningful mainly when status is not_started
   status: "not_started" | "in_progress" | "completed" | "withdrawn" | "missed_cut";
+  // Leaderboard position at the START and CURRENT point of this round
+  // specifically (not overall tournament position) - used for the
+  // Positions Gained/Lost bonus pick categories. Null for a round
+  // that hasn't started yet, or wasn't available from ESPN.
+  startPosition: number | null;
+  currentPosition: number | null;
 }
 
 export interface NormalizedLeaderboard {
@@ -177,6 +183,8 @@ function normalizeEspnResponse(raw: any): NormalizedLeaderboard {
         thru: roundNumber === (competition?.status?.period ?? roundNumber) ? Number(c.status?.thru ?? 0) : 18,
         status: roundStatus,
         teeTime: ls.teeTime ?? null,
+        startPosition: ls.startPosition ?? null,
+        currentPosition: ls.currentPosition ?? null,
       });
     }
 
@@ -204,6 +212,8 @@ function normalizeEspnResponse(raw: any): NormalizedLeaderboard {
           thru: 0,
           status: overallStatus,
           teeTime: null,
+          startPosition: null,
+          currentPosition: null,
         });
       }
     }

@@ -238,6 +238,17 @@ create table if not exists player_round_scores (
 -- of being added inline above).
 alter table player_round_scores add column if not exists tee_time timestamptz;
 
+-- Leaderboard position at the start and current point of THIS round
+-- specifically - used for the Positions Gained/Lost bonus categories.
+-- Sourced from the same main leaderboard sync that's already working
+-- reliably (see espnGolf.ts), NOT the competitorsummary endpoint,
+-- which ESPN's CDN was found to serve stripped/empty responses to
+-- when called from this server (confirmed via side-by-side testing -
+-- identical requests worked fine from a normal machine but came back
+-- empty from here, even with full browser-style headers added).
+alter table player_round_scores add column if not exists start_position int;
+alter table player_round_scores add column if not exists current_position int;
+
 -- Cached last-known-good snapshot of the raw ESPN response, per tournament.
 -- Used as a fallback if ESPN's endpoint is unreachable when a refresh runs.
 create table if not exists espn_snapshot_cache (
