@@ -38,13 +38,18 @@ app.use("/admin", adminRouter);
 
 // GET /tournaments/:id - basic tournament + rounds info for the frontend
 app.get("/tournaments/:id", async (req, res) => {
-  const tournament = await query(`select * from tournaments where id = $1`, [req.params.id]);
-  if (tournament.rows.length === 0) return res.status(404).json({ error: "Not found." });
-  const rounds = await query(
-    `select * from rounds where tournament_id = $1 order by round_number asc`,
-    [req.params.id]
-  );
-  res.json({ ...tournament.rows[0], rounds: rounds.rows });
+  try {
+    const tournament = await query(`select * from tournaments where id = $1`, [req.params.id]);
+    if (tournament.rows.length === 0) return res.status(404).json({ error: "Not found." });
+    const rounds = await query(
+      `select * from rounds where tournament_id = $1 order by round_number asc`,
+      [req.params.id]
+    );
+    res.json({ ...tournament.rows[0], rounds: rounds.rows });
+  } catch (err) {
+    console.error("tournaments/:id query failed:", err);
+    res.status(500).json({ error: "Failed to load tournament." });
+  }
 });
 
 const PORT = process.env.PORT || 3001;

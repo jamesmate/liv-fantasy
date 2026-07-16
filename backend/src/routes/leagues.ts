@@ -192,19 +192,24 @@ leagueRouter.get("/:id", async (req, res) => {
 });
 
 leagueRouter.get("/:id/current-tournament", async (req, res) => {
-  const tournament = await query(
-    `select * from tournaments where league_id = $1 order by created_at desc limit 1`,
-    [req.params.id]
-  );
-  if (tournament.rows.length === 0) {
-    return res.json(null);
+  try {
+    const tournament = await query(
+      `select * from tournaments where league_id = $1 order by created_at desc limit 1`,
+      [req.params.id]
+    );
+    if (tournament.rows.length === 0) {
+      return res.json(null);
+    }
+    maybeSync(tournament.rows[0].id, tournament.rows[0].espn_event_id, tournament.rows[0].status);
+    const rounds = await query(
+      `select * from rounds where tournament_id = $1 order by round_number asc`,
+      [tournament.rows[0].id]
+    );
+    res.json({ ...tournament.rows[0], rounds: rounds.rows });
+  } catch (err) {
+    console.error("current-tournament query failed:", err);
+    res.status(500).json({ error: "Failed to load tournament." });
   }
-  maybeSync(tournament.rows[0].id, tournament.rows[0].espn_event_id, tournament.rows[0].status);
-  const rounds = await query(
-    `select * from rounds where tournament_id = $1 order by round_number asc`,
-    [tournament.rows[0].id]
-  );
-  res.json({ ...tournament.rows[0], rounds: rounds.rows });
 });
 
 // GET /leagues/:id/podium-standings - all-time ranking by count of
@@ -213,13 +218,18 @@ leagueRouter.get("/:id/current-tournament", async (req, res) => {
 // most 1sts, then most 2nds, then most 3rds, then lowest career score
 // as a final tiebreak.
 leagueRouter.get("/:id/podium-standings", async (req, res) => {
-  const result = await query(
-    `select * from podium_standings
-      where league_id = $1
-      order by firsts desc, seconds desc, thirds desc, career_total_to_par asc`,
-    [req.params.id]
-  );
-  res.json(result.rows);
+  try {
+    const result = await query(
+      `select * from podium_standings
+        where league_id = $1
+        order by firsts desc, seconds desc, thirds desc, career_total_to_par asc`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("podium-standings query failed:", err);
+    res.status(500).json({ error: "Failed to load standings." });
+  }
 });
 
 // GET /leagues/:id/career-stats - persistent, cross-tournament stats
@@ -348,6 +358,7 @@ leagueRouter.get("/:id/recap", async (req, res) => {
 // Returns the latest tournament for this league, same scoping as
 // /standings.
 leagueRouter.get("/:id/leaderboard", async (req, res) => {
+  try {
   const tournament = await query<{ id: string; name: string; total_rounds: number }>(
     `select id, name, total_rounds from tournaments where league_id = $1 order by created_at desc limit 1`,
     [req.params.id]
@@ -575,6 +586,15 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
   result.sort((a, b) => a.overallTotal - b.overallTotal);
 
   res.json({ tournament: { id: tournamentId, name: tournamentName, totalRounds }, teams: result });
+  } catch (err) {
+    // This is the single most-loaded endpoint in the app - an
+    // unguarded throw here (e.g. a column a migration hasn't been run
+    // for yet) previously meant NO response was ever sent at all,
+    // which looks like an infinite loading spinner on the frontend
+    // rather than a clear error. Always send something back instead.
+    console.error("leaderboard query failed:", err);
+    res.status(500).json({ error: "Failed to load leaderboard." });
+  }
 });
 
 // GET /leagues/:id/standings - latest tournament's running totals
