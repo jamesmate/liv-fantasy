@@ -64,6 +64,8 @@ select
     else coalesce(s.score_to_par, 0)
   end as effective_score_to_par,
   s.status as player_status,
+  s.thru,
+  s.tee_time,
   tp.pro_team_name,
   tp.country_code
 from picks p

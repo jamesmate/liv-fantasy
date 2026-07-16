@@ -189,6 +189,8 @@ export interface LeaderboardRoundPick {
   scoreToPar: number;
   hasDoublePlay: boolean;
   status: string;
+  thru: number | null;
+  teeTime: string | null;
   playerRoundScores: { roundNumber: number; scoreToPar: number; fieldAvg: number | null; fieldBest: number | null }[];
   timingRank: number | null;
   timingOf: number | null;

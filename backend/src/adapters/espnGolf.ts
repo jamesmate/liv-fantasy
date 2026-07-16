@@ -57,6 +57,7 @@ export interface NormalizedPlayerRound {
   roundNumber: number;
   scoreToPar: number | null; // null = round not played (not started, or withdrew before this round)
   thru: number; // holes completed in the current/most recent round, 0-18
+  teeTime: string | null; // ISO timestamp - meaningful mainly when status is not_started
   status: "not_started" | "in_progress" | "completed" | "withdrawn" | "missed_cut";
 }
 
@@ -175,6 +176,7 @@ function normalizeEspnResponse(raw: any): NormalizedLeaderboard {
         scoreToPar,
         thru: roundNumber === (competition?.status?.period ?? roundNumber) ? Number(c.status?.thru ?? 0) : 18,
         status: roundStatus,
+        teeTime: ls.teeTime ?? null,
       });
     }
 
@@ -201,6 +203,7 @@ function normalizeEspnResponse(raw: any): NormalizedLeaderboard {
           scoreToPar: null,
           thru: 0,
           status: overallStatus,
+          teeTime: null,
         });
       }
     }

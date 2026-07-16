@@ -27,6 +27,19 @@ function formatToPar(n: number | null): string {
   return n > 0 ? `+${n}` : `${n}`;
 }
 
+// Shows how far through the round a pick is - or, if they haven't
+// teed off yet, their tee time instead (parsed to the viewer's local
+// time, not whatever timezone the course is in).
+function formatThruOrTeeTime(status: string, thru: number | null, teeTime: string | null): string {
+  if (status === "not_started") {
+    if (!teeTime) return "";
+    return new Date(teeTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  }
+  if (thru === null || thru <= 0) return "";
+  if (thru >= 18) return "F";
+  return `Thru ${thru}`;
+}
+
 // Red-neutral-green gradient for a 0-100 percentage (Pick IQ), same
 // visual language as the score gradients elsewhere in the app, just
 // scaled for a percent instead of a golf score.
@@ -272,7 +285,7 @@ function TeamRow({
             <Box key={round.roundNumber} mb={6}>
               <Text size="xs" fw={700} c="forest.2" mb={4}>
                 Round {round.roundNumber}
-                {round.total !== null ? ` · ${formatToPar(round.total)}` : ""}
+                {round.total !== null ? ` | ${formatToPar(round.total)}` : ""}
               </Text>
               {round.picks.length === 0 ? (
                 <Text size="xs" c="forest.3" pl="xs">
@@ -325,19 +338,24 @@ function TeamRow({
                             </Badge>
                           )}
                         </Group>
-                        <Text
-                          size="xs"
-                          fw={600}
-                          c={
-                            pick.scoreToPar < 0
-                              ? "mint.7"
-                              : pick.scoreToPar > 0
-                              ? "coral.6"
-                              : "forest.6"
-                          }
-                        >
-                          {formatToPar(pick.scoreToPar)}
-                        </Text>
+                        <Stack gap={0} align="flex-end" style={{ flexShrink: 0 }}>
+                          <Text
+                            size="xs"
+                            fw={600}
+                            c={
+                              pick.scoreToPar < 0
+                                ? "mint.7"
+                                : pick.scoreToPar > 0
+                                ? "coral.6"
+                                : "forest.6"
+                            }
+                          >
+                            {formatToPar(pick.scoreToPar)}
+                          </Text>
+                          <Text size="9px" c="forest.3">
+                            {formatThruOrTeeTime(pick.status, pick.thru, pick.teeTime)}
+                          </Text>
+                        </Stack>
                       </Group>
                     );
                   })}

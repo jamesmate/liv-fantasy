@@ -390,9 +390,11 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
     score_to_par: number;
     has_double_play: boolean;
     player_status: string;
+    thru: number | null;
+    tee_time: string | null;
   }>(
     `select member_id, round_number, tournament_player_id, player_name, pro_team_name, country_code,
-            score_to_par, has_double_play, player_status
+            score_to_par, has_double_play, player_status, thru, tee_time
        from pick_scores
       where tournament_id = $1
       order by round_number asc`,
@@ -511,6 +513,8 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
             scoreToPar: p.score_to_par,
             hasDoublePlay: p.has_double_play,
             status: p.player_status,
+            thru: p.thru,
+            teeTime: p.tee_time,
             // Full round-by-round line for this player, for the
             // sparkline - empty/short until they've played enough to
             // be worth graphing. fieldAvg alongside each round lets

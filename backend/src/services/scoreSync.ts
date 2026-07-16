@@ -139,14 +139,15 @@ async function writeScoresToDb(tournamentId: string, board: NormalizedLeaderboar
 
     await query(
       `insert into player_round_scores
-         (tournament_player_id, round_id, score_to_par, thru, status, updated_at)
-       values ($1, $2, $3, $4, $5, now())
+         (tournament_player_id, round_id, score_to_par, thru, tee_time, status, updated_at)
+       values ($1, $2, $3, $4, $5, $6, now())
        on conflict (tournament_player_id, round_id) do update
          set score_to_par = excluded.score_to_par,
              thru = excluded.thru,
+             tee_time = excluded.tee_time,
              status = excluded.status,
              updated_at = now()`,
-      [tournamentPlayerId, roundId, player.scoreToPar, player.thru, player.status]
+      [tournamentPlayerId, roundId, player.scoreToPar, player.thru, player.teeTime, player.status]
     );
 
     // If a player is withdrawn or missed the cut, mark them inactive

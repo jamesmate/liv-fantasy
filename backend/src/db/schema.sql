@@ -226,6 +226,7 @@ create table if not exists player_round_scores (
   round_id uuid not null references rounds(id) on delete cascade,
   score_to_par int, -- null until the player has started/has a score
   thru int, -- holes completed this round, 0-18
+  tee_time timestamptz, -- this round's tee time - mainly meaningful when status is not_started
   status text not null default 'not_started', -- not_started | in_progress | completed | withdrawn
   updated_at timestamptz not null default now(),
   unique (tournament_player_id, round_id)
