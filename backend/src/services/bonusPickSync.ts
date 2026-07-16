@@ -169,9 +169,21 @@ async function fetchScorecardFromPublicPage(
     throw new Error(`scorecard page fetch failed (${res.status}) for player ${espnPlayerId}`);
   }
   const html = await res.text();
+  console.log(
+    `[bonusPickSync] scorecard page for ${espnPlayerId}: ${html.length} bytes, contains __espnfitt__=${html.includes(
+      "__espnfitt__"
+    )}, contains 'rnds'=${html.includes('"rnds"')}, contains 'DOUBLE_BOGEY'=${html.includes("DOUBLE_BOGEY")}`
+  );
   const data = extractEmbeddedJson(html);
-  if (!data) return null;
-  return findRoundsArray(data);
+  if (!data) {
+    console.log(`[bonusPickSync] extractEmbeddedJson returned null for player ${espnPlayerId}`);
+    return null;
+  }
+  const rounds = findRoundsArray(data);
+  console.log(
+    `[bonusPickSync] findRoundsArray for player ${espnPlayerId}: ${rounds ? `found ${rounds.length} round(s), numbers=${JSON.stringify(rounds.map((r) => r.number))}` : "returned null"}`
+  );
+  return rounds;
 }
 
 function calculateHolePointsFromScrape(
