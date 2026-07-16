@@ -73,7 +73,26 @@ async function fetchCompetitorSummary(
   espnPlayerId: string
 ): Promise<EspnCompetitorSummary | null> {
   const url = `https://site.web.api.espn.com/apis/site/v2/sports/golf/${leagueSlug}/leaderboard/${espnEventId}/competitorsummary/${espnPlayerId}?region=us&lang=en`;
-  const res = await fetch(url, { headers: { accept: "application/json" } });
+  // ESPN's CDN appears to serve a stripped-down (empty rounds/
+  // linescores) response to requests that don't look like they're
+  // coming from a real browser - confirmed by comparing side-by-side:
+  // a plain `curl` with no special headers got full hole-by-hole
+  // data, while this server's fetch() (Node's default identity, no
+  // User-Agent at all) got an empty rounds array for the exact same
+  // player/event. Sending a realistic browser User-Agent (and the
+  // headers a browser would normally include) resolves it - this
+  // isn't deep fingerprint evasion, just matching what curl/a browser
+  // already sends by default and Node's fetch doesn't.
+  const res = await fetch(url, {
+    headers: {
+      accept: "application/json, text/plain, */*",
+      "accept-language": "en-US,en;q=0.9",
+      "user-agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+      origin: "https://www.espn.com",
+      referer: "https://www.espn.com/",
+    },
+  });
   if (!res.ok) {
     throw new Error(`competitorsummary fetch failed (${res.status}) for player ${espnPlayerId}`);
   }
