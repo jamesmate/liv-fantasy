@@ -723,3 +723,55 @@ adminRouter.delete("/schedule/:id", async (req, res) => {
   }
   res.json({ success: true });
 });
+
+// POST /admin/bonus-picks/:id/set-points  { points }
+// Manual override for a single bonus pick's points - a fallback for
+// when automated ESPN syncing fails (e.g. the server's requests are
+// blocked/throttled but a manual curl from a normal machine isn't).
+// Bypasses all ESPN fetching entirely - just sets the number directly.
+adminRouter.post("/bonus-picks/:id/set-points", async (req, res) => {
+  const { points } = req.body;
+  if (typeof points !== "number" || !Number.isFinite(points)) {
+    return res.status(400).json({ error: "points must be a number." });
+  }
+
+  const result = await query<{ id: string }>(
+    `update bonus_picks bp
+        set points = $1, last_synced_at = now()
+       from rounds r, tournaments t
+      where bp.id = $2
+        and bp.round_id = r.id
+        and r.tournament_id = t.id
+        and t.league_id = $3
+      returning bp.id`,
+    [points, req.params.id, req.member!.leagueId]
+  );
+  if (result.rows.length === 0) {
+    return res.status(404).json({ error: "Bonus pick not found." });
+  }
+  res.json({ success: true });
+});
+
+// GET /admin/bonus-picks?roundId=xxx
+// Lists bonus picks for a round with enough context (player name,
+// team name, category) to know which id to target with the manual
+// set-points override above, without needing to hunt through the DB
+// directly.
+adminRouter.get("/bonus-picks", async (req, res) => {
+  const { roundId } = req.query;
+  if (!roundId || typeof roundId !== "string") {
+    return res.status(400).json({ error: "roundId query param is required." });
+  }
+  const result = await query(
+    `select bp.id, m.team_name, tp.full_name as player_name, tp.espn_player_id,
+            bp.points, r.round_number, r.bonus_category
+       from bonus_picks bp
+       join members m on m.id = bp.member_id
+       join tournament_players tp on tp.id = bp.tournament_player_id
+       join rounds r on r.id = bp.round_id
+       join tournaments t on t.id = r.tournament_id
+      where bp.round_id = $1 and t.league_id = $2`,
+    [roundId, req.member!.leagueId]
+  );
+  res.json(result.rows);
+});
