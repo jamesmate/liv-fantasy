@@ -64,10 +64,15 @@ select
     else coalesce(s.score_to_par, 0)
   end as effective_score_to_par,
   s.status as player_status,
-  s.thru,
-  s.tee_time,
   tp.pro_team_name,
-  tp.country_code
+  tp.country_code,
+  -- thru/tee_time appended at the END of the column list deliberately -
+  -- Postgres's CREATE OR REPLACE VIEW only allows adding new columns
+  -- at the end; inserting them earlier shifts every column after them
+  -- and Postgres reads that as renaming those columns, which it
+  -- refuses ("cannot change name of view column X to Y").
+  s.thru,
+  s.tee_time
 from picks p
 join tournament_players tp on tp.id = p.tournament_player_id
 join rounds r on r.id = p.round_id
