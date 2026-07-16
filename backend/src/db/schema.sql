@@ -226,11 +226,17 @@ create table if not exists player_round_scores (
   round_id uuid not null references rounds(id) on delete cascade,
   score_to_par int, -- null until the player has started/has a score
   thru int, -- holes completed this round, 0-18
-  tee_time timestamptz, -- this round's tee time - mainly meaningful when status is not_started
   status text not null default 'not_started', -- not_started | in_progress | completed | withdrawn
   updated_at timestamptz not null default now(),
   unique (tournament_player_id, round_id)
 );
+
+-- Added after player_round_scores already existed in production -
+-- CREATE TABLE IF NOT EXISTS is a no-op against an existing table, so
+-- this column needs its own ALTER TABLE (same reason every other
+-- post-launch column addition in this file uses this pattern instead
+-- of being added inline above).
+alter table player_round_scores add column if not exists tee_time timestamptz;
 
 -- Cached last-known-good snapshot of the raw ESPN response, per tournament.
 -- Used as a fallback if ESPN's endpoint is unreachable when a refresh runs.
