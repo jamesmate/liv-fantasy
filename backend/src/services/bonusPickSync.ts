@@ -145,14 +145,22 @@ export async function syncBonusPicksForRound(roundId: string): Promise<void> {
     [roundId]
   );
   const round = roundResult.rows[0];
-  if (!round || !round.bonus_category || !round.espn_event_id) return;
+  if (!round || !round.bonus_category || !round.espn_event_id) {
+    console.log(
+      `[bonusPickSync] skipping round ${roundId} - round=${!!round} category=${round?.bonus_category} espnEventId=${round?.espn_event_id}`
+    );
+    return;
+  }
 
-  const picksResult = await query<{ id: string; espn_player_id: string }>(
+  const picksResult = await query<{ id: string; espn_player_id: string | null }>(
     `select bp.id, tp.espn_player_id
        from bonus_picks bp
        join tournament_players tp on tp.id = bp.tournament_player_id
       where bp.round_id = $1`,
     [roundId]
+  );
+  console.log(
+    `[bonusPickSync] round ${roundId} (round ${round.round_number}, category ${round.bonus_category}): found ${picksResult.rows.length} bonus pick(s)`
   );
   if (picksResult.rows.length === 0) return;
 
@@ -161,8 +169,12 @@ export async function syncBonusPicksForRound(roundId: string): Promise<void> {
   // that player, not once per member who picked them.
   const byPlayer = new Map<string, { id: string; espn_player_id: string }[]>();
   for (const p of picksResult.rows) {
+    if (!p.espn_player_id) {
+      console.error(`[bonusPickSync] bonus pick ${p.id} has no espn_player_id on its tournament_players row - skipping`);
+      continue;
+    }
     const list = byPlayer.get(p.espn_player_id) ?? [];
-    list.push(p);
+    list.push({ id: p.id, espn_player_id: p.espn_player_id });
     byPlayer.set(p.espn_player_id, list);
   }
 
@@ -171,6 +183,10 @@ export async function syncBonusPicksForRound(roundId: string): Promise<void> {
       const summary = await fetchCompetitorSummary(round.espn_league_slug, round.espn_event_id, espnPlayerId);
       const roundData = summary?.rounds?.find((r) => r.period === round.round_number);
       const { points, breakdown } = calculateBonusPoints(round.bonus_category, roundData);
+      console.log(
+        `[bonusPickSync] player ${espnPlayerId} round ${round.round_number}: roundDataFound=${!!roundData} holesFound=${roundData?.linescores?.length ?? 0} -> ${points}pts`,
+        breakdown
+      );
 
       for (const pick of bonusPickRows) {
         await query(
