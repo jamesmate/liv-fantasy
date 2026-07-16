@@ -184,7 +184,7 @@ export async function syncBonusPicksForRound(roundId: string): Promise<void> {
       const roundData = summary?.rounds?.find((r) => r.period === round.round_number);
       const { points, breakdown } = calculateBonusPoints(round.bonus_category, roundData);
       console.log(
-        `[bonusPickSync] player ${espnPlayerId} round ${round.round_number}: roundDataFound=${!!roundData} holesFound=${roundData?.linescores?.length ?? 0} -> ${points}pts`,
+        `[bonusPickSync] player ${espnPlayerId} round ${round.round_number}: roundDataFound=${!!roundData} holesFound=${roundData?.linescores?.length ?? 0} availablePeriods=${JSON.stringify(summary?.rounds?.map((r) => r.period) ?? [])} -> ${points}pts`,
         breakdown
       );
 
