@@ -39,71 +39,148 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-interface EspnLinescore {
-  value: number;
-  period: number;
+// Space out consecutive scorecard-page fetches so this stays a
+// reasonable citizen of ESPN's public site, even though (unlike the
+// blocked API endpoint) there's no confirmed rate-limit issue here.
+const REQUEST_DELAY_MS = 1500;
+
+interface ScrapedHoleScore {
+  number: number; // hole number
+  mod: string; // "PAR" | "BIRDIE" | "BOGEY" | "DOUBLE_BOGEY" | "EAGLE" | etc
   par: number;
+  val: string; // strokes, as a STRING in this embedded data (e.g. "4")
 }
 
-interface EspnCompetitorRound {
-  period: number;
-  linescores?: EspnLinescore[];
-}
-
-interface EspnCompetitorSummary {
-  rounds?: EspnCompetitorRound[];
+interface ScrapedRound {
+  number: number; // round number
+  scores?: ScrapedHoleScore[];
 }
 
 /**
- * Pulls one player's hole-by-hole scores from ESPN, for the HOLE-BASED
- * categories only (Eagle/Birdie/Bogey/Bogey Monster) - Positions
- * Gained/Lost no longer uses this endpoint at all, see below.
- *
- * This endpoint has proven unreliable from this server specifically:
- * confirmed via side-by-side testing that an identical request for a
- * player with a confirmed double bogey returned full data from a
- * normal machine but an empty rounds array from here, even after
- * adding full browser-style headers. The leading remaining theory is
- * ESPN's CDN rate-limiting/throttling rapid same-endpoint requests
- * from a single source - ADD_DELAY_MS below spaces consecutive calls
- * out to test that. If hole-based categories are still unreliable
- * even with this, treat that as evidence it's an IP-level block
- * rather than a burst/rate issue, which would need a different
- * approach entirely (e.g. routing through a residential proxy).
+ * Recursively searches a parsed object for a "rnds" array containing
+ * round/hole data - deliberately not hardcoding the exact path from
+ * root (e.g. `page.content.player.rnds`), since ESPN's embedded blob
+ * structure isn't something we control or have full visibility into,
+ * and a structural change elsewhere in the object shouldn't silently
+ * break this as long as the "rnds" key itself still exists somewhere.
  */
-const REQUEST_DELAY_MS = 2000;
+function findRoundsArray(obj: unknown, depth = 0): ScrapedRound[] | null {
+  if (depth > 15 || obj === null || typeof obj !== "object") return null;
+  if (Array.isArray(obj)) {
+    for (const item of obj) {
+      const found = findRoundsArray(item, depth + 1);
+      if (found) return found;
+    }
+    return null;
+  }
+  const record = obj as Record<string, unknown>;
+  if (Array.isArray(record.rnds) && record.rnds.length > 0 && typeof record.rnds[0] === "object") {
+    const candidate = record.rnds as ScrapedRound[];
+    if (candidate[0] && "scores" in (candidate[0] as object)) return candidate;
+  }
+  for (const key of Object.keys(record)) {
+    const found = findRoundsArray(record[key], depth + 1);
+    if (found) return found;
+  }
+  return null;
+}
 
-async function fetchCompetitorSummary(
-  leagueSlug: string,
+/**
+ * Extracts the `window['__espnfitt__'] = {...}` (ESPN's site-wide
+ * client hydration data blob - "fitt" is their frontend framework,
+ * visible in the script filenames this page loads) JSON from a raw
+ * HTML page, using proper brace-matching rather than a regex, since
+ * the object is deeply nested and a regex can't reliably find the
+ * correct closing brace.
+ */
+function extractEmbeddedJson(html: string): unknown | null {
+  const markers = ["window['__espnfitt__']=", 'window["__espnfitt__"]=', "window.__espnfitt__="];
+  let startIdx = -1;
+  for (const marker of markers) {
+    const idx = html.indexOf(marker);
+    if (idx !== -1) {
+      startIdx = idx + marker.length;
+      break;
+    }
+  }
+  if (startIdx === -1) return null;
+
+  const braceStart = html.indexOf("{", startIdx);
+  if (braceStart === -1) return null;
+
+  let depth = 0;
+  let inString = false;
+  let escapeNext = false;
+  for (let i = braceStart; i < html.length; i++) {
+    const ch = html[i];
+    if (escapeNext) {
+      escapeNext = false;
+      continue;
+    }
+    if (ch === "\\") {
+      escapeNext = true;
+      continue;
+    }
+    if (ch === '"') {
+      inString = !inString;
+      continue;
+    }
+    if (inString) continue;
+    if (ch === "{") depth++;
+    else if (ch === "}") {
+      depth--;
+      if (depth === 0) {
+        const jsonStr = html.slice(braceStart, i + 1);
+        try {
+          return JSON.parse(jsonStr);
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Scrapes one player's hole-by-hole scorecard from ESPN's public
+ * scorecard page - used instead of the site.web.api.espn.com
+ * competitorsummary endpoint, which was confirmed (via side-by-side
+ * testing) to serve stripped/empty data specifically to this server,
+ * even with realistic browser headers and request pacing added. The
+ * public page doesn't appear to have the same restriction - likely
+ * because it needs to stay freely crawlable for Google/social preview
+ * purposes, unlike a "private" API subdomain.
+ */
+async function fetchScorecardFromPublicPage(
   espnEventId: string,
   espnPlayerId: string
-): Promise<EspnCompetitorSummary | null> {
-  const url = `https://site.web.api.espn.com/apis/site/v2/sports/golf/${leagueSlug}/leaderboard/${espnEventId}/competitorsummary/${espnPlayerId}?region=us&lang=en`;
+): Promise<ScrapedRound[] | null> {
+  const url = `https://www.espn.com/golf/player/scorecards/_/id/${espnPlayerId}/tournamentid/${espnEventId}`;
   const res = await fetch(url, {
     headers: {
-      accept: "application/json, text/plain, */*",
+      accept: "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
       "accept-language": "en-US,en;q=0.9",
       "user-agent":
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
-      origin: "https://www.espn.com",
-      referer: "https://www.espn.com/",
     },
   });
   if (!res.ok) {
-    throw new Error(`competitorsummary fetch failed (${res.status}) for player ${espnPlayerId}`);
+    throw new Error(`scorecard page fetch failed (${res.status}) for player ${espnPlayerId}`);
   }
-  const data = (await res.json()) as { competitor?: EspnCompetitorSummary };
-  return data.competitor ?? null;
+  const html = await res.text();
+  const data = extractEmbeddedJson(html);
+  if (!data) return null;
+  return findRoundsArray(data);
 }
 
-function calculateHolePoints(
+function calculateHolePointsFromScrape(
   category: string,
-  roundData: EspnCompetitorRound | undefined
+  scores: ScrapedHoleScore[] | undefined
 ): { points: number; breakdown: Record<string, number> } {
-  const holes = roundData?.linescores ?? [];
   let count = 0;
-  for (const hole of holes) {
-    const diff = hole.value - hole.par;
+  for (const hole of scores ?? []) {
+    const diff = Number(hole.val) - hole.par;
     if (category === "EAGLE" && diff <= -2) count++;
     else if (category === "BIRDIE" && diff === -1) count++;
     else if (category === "BOGEY" && diff === 1) count++;
@@ -198,14 +275,14 @@ export async function syncBonusPicksForRound(roundId: string): Promise<void> {
 
   let first = true;
   for (const [espnPlayerId, bonusPickRows] of byPlayer) {
-    if (!first) await sleep(REQUEST_DELAY_MS); // space out requests - see REQUEST_DELAY_MS comment above
+    if (!first) await sleep(REQUEST_DELAY_MS); // be a reasonable citizen even on the public page
     first = false;
     try {
-      const summary = await fetchCompetitorSummary(round.espn_league_slug, round.espn_event_id, espnPlayerId);
-      const roundData = summary?.rounds?.find((r) => r.period === round.round_number);
-      const { points, breakdown } = calculateHolePoints(round.bonus_category, roundData);
+      const rounds = await fetchScorecardFromPublicPage(round.espn_event_id, espnPlayerId);
+      const roundData = rounds?.find((r) => r.number === round.round_number);
+      const { points, breakdown } = calculateHolePointsFromScrape(round.bonus_category, roundData?.scores);
       console.log(
-        `[bonusPickSync] player ${espnPlayerId} round ${round.round_number}: holesFound=${roundData?.linescores?.length ?? 0} -> ${points}pts`
+        `[bonusPickSync] player ${espnPlayerId} round ${round.round_number}: holesFound=${roundData?.scores?.length ?? 0} -> ${points}pts`
       );
       for (const pick of bonusPickRows) {
         await query(`update bonus_picks set points = $1, breakdown = $2, last_synced_at = now() where id = $3`, [
