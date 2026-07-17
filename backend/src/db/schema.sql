@@ -348,3 +348,36 @@ create index if not exists idx_bonus_picks_round on bonus_picks(round_id);
 -- fix back to 0/stale on its next run - which is exactly what
 -- happened before this flag existed.
 alter table bonus_picks add column if not exists manually_overridden boolean not null default false;
+
+-- ============================================================
+-- "Jamdog Interviews" - owner poses as a journalist, sends a
+-- question to one team, they answer, it publishes to the
+-- leaderboard's "Live from the tournament" section for everyone
+-- to see and react to. Scoped per-tournament, same as headlines.
+-- ============================================================
+create table if not exists interview_questions (
+  id uuid primary key default gen_random_uuid(),
+  league_id uuid not null references leagues(id) on delete cascade,
+  tournament_id uuid not null references tournaments(id) on delete cascade,
+  member_id uuid not null references members(id) on delete cascade,
+  question_text text not null,
+  status text not null default 'pending', -- pending | answered
+  answer_text text,
+  answered_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_interview_questions_tournament on interview_questions(tournament_id);
+create index if not exists idx_interview_questions_member_pending on interview_questions(member_id, status);
+
+-- One row per (interview, member, emoji) - a member can react with
+-- several DIFFERENT emojis on the same interview, but not stack the
+-- same emoji twice (toggling it again removes the reaction).
+create table if not exists interview_reactions (
+  id uuid primary key default gen_random_uuid(),
+  interview_id uuid not null references interview_questions(id) on delete cascade,
+  member_id uuid not null references members(id) on delete cascade,
+  emoji text not null,
+  created_at timestamptz not null default now(),
+  unique (interview_id, member_id, emoji)
+);
+create index if not exists idx_interview_reactions_interview on interview_reactions(interview_id);

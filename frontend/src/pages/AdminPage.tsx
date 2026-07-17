@@ -37,6 +37,7 @@ import {
 } from "../api/client";
 import { getCountryFlagUrl } from "../utils/countryFlags";
 import { ScheduleAdmin } from "../components/ScheduleAdmin";
+import { InterviewComposer } from "../components/InterviewComposer";
 
 export default function AdminPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
@@ -341,6 +342,7 @@ export default function AdminPage() {
       </Button>
 
       {leagueId && <ScheduleAdmin leagueId={leagueId} />}
+      {leagueId && <InterviewComposer />}
 
       {(!tournament || tournament.status === "completed") && (
         <Card bg="forest.7" p="lg">

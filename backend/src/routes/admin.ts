@@ -778,3 +778,52 @@ adminRouter.get("/bonus-picks", async (req, res) => {
   );
   res.json(result.rows);
 });
+
+// GET /admin/members - team_name/display_name list, for admin UI
+// dropdowns (e.g. picking who to send an interview question to).
+adminRouter.get("/members", async (req, res) => {
+  const result = await query(
+    `select id, team_name, display_name from members where league_id = $1 order by team_name asc`,
+    [req.member!.leagueId]
+  );
+  res.json(result.rows);
+});
+
+// POST /admin/interview-questions  { memberId, questionText }
+// Sends a new "Jamdog Interview" question to one team for the
+// league's current tournament. The member sees a popup prompting
+// them to answer next time they open the app (see
+// GET /leagues/:id/my-pending-interview).
+adminRouter.post("/interview-questions", async (req, res) => {
+  const { memberId, questionText } = req.body;
+  if (!memberId || typeof memberId !== "string") {
+    return res.status(400).json({ error: "memberId is required." });
+  }
+  if (!questionText || typeof questionText !== "string" || !questionText.trim()) {
+    return res.status(400).json({ error: "questionText is required." });
+  }
+
+  const member = await query<{ id: string }>(`select id from members where id = $1 and league_id = $2`, [
+    memberId,
+    req.member!.leagueId,
+  ]);
+  if (member.rows.length === 0) {
+    return res.status(404).json({ error: "No member with that id in this league." });
+  }
+
+  const tournament = await query<{ id: string }>(
+    `select id from tournaments where league_id = $1 order by created_at desc limit 1`,
+    [req.member!.leagueId]
+  );
+  if (tournament.rows.length === 0) {
+    return res.status(400).json({ error: "No tournament exists yet for this league." });
+  }
+
+  const result = await query<{ id: string }>(
+    `insert into interview_questions (league_id, tournament_id, member_id, question_text)
+     values ($1, $2, $3, $4)
+     returning id`,
+    [req.member!.leagueId, tournament.rows[0].id, memberId, questionText.trim()]
+  );
+  res.status(201).json({ id: result.rows[0].id });
+});

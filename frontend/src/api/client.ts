@@ -251,6 +251,24 @@ export interface TournamentRecap {
   awards: RecapAward[];
 }
 
+export interface PendingInterview {
+  id: string;
+  question_text: string;
+  team_name: string;
+}
+
+export interface PublishedInterview {
+  id: string;
+  teamName: string;
+  questionText: string;
+  answerText: string;
+  answeredAt: string;
+  reactionCounts: Record<string, number>;
+  myReactions: string[];
+}
+
+export const REACTION_EMOJIS = ["🔥", "😂", "👏", "😮", "💀"];
+
 export interface Headline {
   id: string;
   text: string;
@@ -521,6 +539,32 @@ export const api = {
 
   getHeadlines: (leagueId: string) =>
     request<{ headlines: Headline[] }>(`/leagues/${leagueId}/headlines`),
+
+  getMyPendingInterview: (leagueId: string) =>
+    request<PendingInterview | null>(`/leagues/${leagueId}/my-pending-interview`),
+
+  answerInterview: (interviewId: string, answerText: string) =>
+    request<{ success: true }>(`/leagues/interview-questions/${interviewId}/answer`, {
+      method: "POST",
+      body: JSON.stringify({ answerText }),
+    }),
+
+  reactToInterview: (interviewId: string, emoji: string) =>
+    request<{ success: true; reacted: boolean }>(`/leagues/interview-questions/${interviewId}/react`, {
+      method: "POST",
+      body: JSON.stringify({ emoji }),
+    }),
+
+  getPublishedInterviews: (leagueId: string) =>
+    request<PublishedInterview[]>(`/leagues/${leagueId}/interviews`),
+
+  getMembers: () => request<{ id: string; team_name: string; display_name: string }[]>(`/admin/members`),
+
+  sendInterviewQuestion: (memberId: string, questionText: string) =>
+    request<{ id: string }>(`/admin/interview-questions`, {
+      method: "POST",
+      body: JSON.stringify({ memberId, questionText }),
+    }),
 
   getRecap: (leagueId: string) => request<TournamentRecap>(`/leagues/${leagueId}/recap`),
 

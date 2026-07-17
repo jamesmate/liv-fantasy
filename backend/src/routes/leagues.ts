@@ -240,6 +240,138 @@ leagueRouter.get("/:id/podium-standings", async (req, res) => {
 // this league, soonest first. See schema.sql for why this is separate
 // from `tournaments` - it's a calendar entered ahead of time, not
 // necessarily wired up for picking yet.
+// GET /leagues/:id/my-pending-interview
+// Checks if the CURRENT member (from their session) has a pending
+// (unanswered) interview question waiting - drives the "Jamdog wants
+// to ask..." popup. Scoped to the league's most recent tournament,
+// same convention as headlines/current-tournament.
+leagueRouter.get("/:id/my-pending-interview", requireMember, async (req, res) => {
+  try {
+    const result = await query<{
+      id: string;
+      question_text: string;
+      team_name: string;
+    }>(
+      `select iq.id, iq.question_text, m.team_name
+         from interview_questions iq
+         join members m on m.id = iq.member_id
+        where iq.member_id = $1 and iq.status = 'pending'
+        order by iq.created_at asc
+        limit 1`,
+      [req.member!.id]
+    );
+    res.json(result.rows[0] ?? null);
+  } catch (err) {
+    console.error("my-pending-interview query failed:", err);
+    res.json(null);
+  }
+});
+
+// POST /interview-questions/:id/answer  { answerText }
+leagueRouter.post("/interview-questions/:id/answer", requireMember, async (req, res) => {
+  const { answerText } = req.body;
+  if (!answerText || typeof answerText !== "string" || !answerText.trim()) {
+    return res.status(400).json({ error: "answerText is required." });
+  }
+  const result = await query<{ id: string }>(
+    `update interview_questions
+        set answer_text = $1, status = 'answered', answered_at = now()
+      where id = $2 and member_id = $3 and status = 'pending'
+      returning id`,
+    [answerText.trim(), req.params.id, req.member!.id]
+  );
+  if (result.rows.length === 0) {
+    return res.status(404).json({ error: "Question not found, already answered, or not addressed to you." });
+  }
+  res.json({ success: true });
+});
+
+const REACTION_EMOJIS = ["🔥", "😂", "👏", "😮", "💀"];
+
+// POST /interview-questions/:id/react  { emoji }
+// Toggles - reacting again with the same emoji removes it.
+leagueRouter.post("/interview-questions/:id/react", requireMember, async (req, res) => {
+  const { emoji } = req.body;
+  if (!REACTION_EMOJIS.includes(emoji)) {
+    return res.status(400).json({ error: `emoji must be one of: ${REACTION_EMOJIS.join(" ")}` });
+  }
+  const existing = await query(
+    `select id from interview_reactions where interview_id = $1 and member_id = $2 and emoji = $3`,
+    [req.params.id, req.member!.id, emoji]
+  );
+  if (existing.rows.length > 0) {
+    await query(`delete from interview_reactions where id = $1`, [existing.rows[0].id]);
+    return res.json({ success: true, reacted: false });
+  }
+  await query(
+    `insert into interview_reactions (interview_id, member_id, emoji) values ($1, $2, $3)`,
+    [req.params.id, req.member!.id, emoji]
+  );
+  res.json({ success: true, reacted: true });
+});
+
+// GET /leagues/:id/interviews
+// Published (answered) interviews for the current tournament, newest
+// first, with reaction counts and whether the CURRENT member has
+// reacted with each emoji (so the frontend can highlight their own
+// reactions).
+leagueRouter.get("/:id/interviews", requireMember, async (req, res) => {
+  try {
+    const tournament = await query<{ id: string }>(
+      `select id from tournaments where league_id = $1 order by created_at desc limit 1`,
+      [req.params.id]
+    );
+    if (tournament.rows.length === 0) return res.json([]);
+
+    const interviews = await query<{
+      id: string;
+      team_name: string;
+      question_text: string;
+      answer_text: string;
+      answered_at: string;
+    }>(
+      `select iq.id, m.team_name, iq.question_text, iq.answer_text, iq.answered_at
+         from interview_questions iq
+         join members m on m.id = iq.member_id
+        where iq.tournament_id = $1 and iq.status = 'answered'
+        order by iq.answered_at desc`,
+      [tournament.rows[0].id]
+    );
+
+    const reactions = await query<{ interview_id: string; emoji: string; member_id: string }>(
+      `select ir.interview_id, ir.emoji, ir.member_id
+         from interview_reactions ir
+         join interview_questions iq on iq.id = ir.interview_id
+        where iq.tournament_id = $1`,
+      [tournament.rows[0].id]
+    );
+
+    const result = interviews.rows.map((iv) => {
+      const ivReactions = reactions.rows.filter((r) => r.interview_id === iv.id);
+      const counts: Record<string, number> = {};
+      const myReactions: string[] = [];
+      for (const r of ivReactions) {
+        counts[r.emoji] = (counts[r.emoji] ?? 0) + 1;
+        if (r.member_id === req.member!.id) myReactions.push(r.emoji);
+      }
+      return {
+        id: iv.id,
+        teamName: iv.team_name,
+        questionText: iv.question_text,
+        answerText: iv.answer_text,
+        answeredAt: iv.answered_at,
+        reactionCounts: counts,
+        myReactions,
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error("interviews query failed:", err);
+    res.json([]);
+  }
+});
+
 leagueRouter.get("/:id/schedule", async (req, res) => {
   try {
     const result = await query(

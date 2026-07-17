@@ -12,6 +12,7 @@ import AdminPage from "./pages/AdminPage";
 import { getStoredLeagueId } from "./api/client";
 import { TopBar } from "./components/TopBar";
 import { BottomTabBar } from "./components/BottomTabBar";
+import { InterviewPopup } from "./components/InterviewPopup";
 
 export default function App() {
   return (
@@ -37,6 +38,7 @@ export default function App() {
         <AppShell.Header>
           <TopBar />
         </AppShell.Header>
+        <InterviewPopup />
         <AppShell.Main>
           <Box
             mx="auto"

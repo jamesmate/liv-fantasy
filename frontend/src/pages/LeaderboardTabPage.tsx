@@ -19,6 +19,7 @@ import { LoadingIndicator } from "../components/LoadingIndicator";
 import { RoundSparkline } from "../components/RoundSparkline";
 import { TeamTimingSummary } from "../components/TeamTimingSummary";
 import { HeadlinesFeed } from "../components/HeadlinesFeed";
+import { PublishedInterviews } from "../components/PublishedInterviews";
 import { TournamentRecap } from "../components/TournamentRecap";
 
 function formatToPar(n: number | null): string {
@@ -192,6 +193,7 @@ export default function LeaderboardTabPage() {
         })()}
       </Stack>
       {leagueId && <HeadlinesFeed leagueId={leagueId} />}
+      {leagueId && <PublishedInterviews leagueId={leagueId} />}
     </Box>
   );
 }
