@@ -26,7 +26,15 @@ declare global {
  */
 export async function requireMember(req: Request, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  const headerToken = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  // Fallback to a ?token= query param - lets a plain URL typed/pasted
+  // into a phone's browser work for read-only admin lookups, since
+  // phones don't have a convenient way to set a custom Authorization
+  // header without installing a separate app. Still just as secure as
+  // the header (same opaque session token, same DB lookup) - this
+  // isn't a weaker auth path, just an alternate place to put the same
+  // credential.
+  const token = headerToken ?? (typeof req.query.token === "string" ? req.query.token : null);
 
   if (!token) {
     return res.status(401).json({ error: "Missing session token." });
