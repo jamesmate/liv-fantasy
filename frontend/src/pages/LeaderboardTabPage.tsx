@@ -62,6 +62,7 @@ export default function LeaderboardTabPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
   const [data, setData] = useState<LeaderboardResponse | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [showBonus, setShowBonus] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -110,9 +111,33 @@ export default function LeaderboardTabPage() {
   return (
     <Box p="md">
       {leagueId && <TournamentRecap leagueId={leagueId} />}
-      <Text size="lg" fw={800} c="forest.9" mb="xs">
-        {data.tournament.name}
-      </Text>
+      <Group justify="space-between" align="center" mb="xs">
+        <Text size="lg" fw={800} c="forest.9">
+          {data.tournament.name}
+        </Text>
+        <Group gap={0} style={{ border: "1px solid var(--mantine-color-forest-3)", borderRadius: 6, overflow: "hidden" }}>
+          <UnstyledButton
+            onClick={() => setShowBonus(false)}
+            px={10}
+            py={4}
+            style={{ background: !showBonus ? "var(--mantine-color-forest-8)" : "transparent" }}
+          >
+            <Text size="10px" fw={700} c={!showBonus ? "white" : "forest.5"}>
+              Score
+            </Text>
+          </UnstyledButton>
+          <UnstyledButton
+            onClick={() => setShowBonus(true)}
+            px={10}
+            py={4}
+            style={{ background: showBonus ? "var(--mantine-color-tangerine-6)" : "transparent" }}
+          >
+            <Text size="10px" fw={700} c={showBonus ? "white" : "forest.5"}>
+              Bonus
+            </Text>
+          </UnstyledButton>
+        </Group>
+      </Group>
       <Stack gap={0}>
         {/* Header row */}
         <Group
@@ -160,6 +185,7 @@ export default function LeaderboardTabPage() {
                 totalRounds={totalRounds}
                 isExpanded={expanded === team.memberId}
                 onToggle={() => setExpanded(expanded === team.memberId ? null : team.memberId)}
+                showBonus={showBonus}
               />
             );
           });
@@ -176,12 +202,14 @@ function TeamRow({
   totalRounds,
   isExpanded,
   onToggle,
+  showBonus,
 }: {
   team: LeaderboardTeam;
   position: number;
   totalRounds: number;
   isExpanded: boolean;
   onToggle: () => void;
+  showBonus: boolean;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
 
@@ -202,29 +230,39 @@ function TeamRow({
               </Text>
             </Box>
           </Group>
-          {team.rounds.map((r) => (
-            <Text
-              key={r.roundNumber}
-              size="sm"
-              ta="center"
-              fw={600}
-              c={
-                r.total === null
-                  ? "forest.3"
-                  : r.total < 0
-                  ? "mint.7"
-                  : r.total > 0
-                  ? "coral.6"
-                  : "forest.6"
-              }
-              style={{ flex: 0.7 }}
-            >
-              {formatToPar(r.total)}
-            </Text>
-          ))}
+          {team.rounds.map((r) => {
+            const bonusPoints = r.bonusPick?.points ?? null;
+            const value = showBonus ? bonusPoints : r.total;
+            return (
+              <Text
+                key={r.roundNumber}
+                size="sm"
+                ta="center"
+                fw={600}
+                c={
+                  value === null
+                    ? "forest.3"
+                    : showBonus
+                    ? value > 0
+                      ? "tangerine.7"
+                      : "forest.5"
+                    : value < 0
+                    ? "mint.7"
+                    : value > 0
+                    ? "coral.6"
+                    : "forest.6"
+                }
+                style={{ flex: 0.7 }}
+              >
+                {value === null ? "-" : showBonus ? value : formatToPar(value)}
+              </Text>
+            );
+          })}
           <Group gap={4} wrap="nowrap" justify="center" style={{ flex: 0.8 }}>
             <Text size="sm" fw={800} c="forest.9">
-              {formatToPar(team.overallTotal)}
+              {showBonus
+                ? team.rounds.reduce((sum, r) => sum + (r.bonusPick?.points ?? 0), 0)
+                : formatToPar(team.overallTotal)}
             </Text>
             {isExpanded ? (
               <IconChevronUp size={14} color="var(--mantine-color-forest-5)" />
