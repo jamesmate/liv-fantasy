@@ -269,21 +269,26 @@ leagueRouter.get("/:id/my-pending-interview", requireMember, async (req, res) =>
 
 // POST /interview-questions/:id/answer  { answerText }
 leagueRouter.post("/interview-questions/:id/answer", requireMember, async (req, res) => {
-  const { answerText } = req.body;
-  if (!answerText || typeof answerText !== "string" || !answerText.trim()) {
-    return res.status(400).json({ error: "answerText is required." });
+  try {
+    const { answerText } = req.body;
+    if (!answerText || typeof answerText !== "string" || !answerText.trim()) {
+      return res.status(400).json({ error: "answerText is required." });
+    }
+    const result = await query<{ id: string }>(
+      `update interview_questions
+          set answer_text = $1, status = 'answered', answered_at = now()
+        where id = $2 and member_id = $3 and status = 'pending'
+        returning id`,
+      [answerText.trim(), req.params.id, req.member!.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: "Question not found, already answered, or not addressed to you." });
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error("interview answer failed:", err);
+    res.status(500).json({ error: "Failed to submit answer." });
   }
-  const result = await query<{ id: string }>(
-    `update interview_questions
-        set answer_text = $1, status = 'answered', answered_at = now()
-      where id = $2 and member_id = $3 and status = 'pending'
-      returning id`,
-    [answerText.trim(), req.params.id, req.member!.id]
-  );
-  if (result.rows.length === 0) {
-    return res.status(404).json({ error: "Question not found, already answered, or not addressed to you." });
-  }
-  res.json({ success: true });
 });
 
 const REACTION_EMOJIS = ["🔥", "😂", "👏", "😮", "💀"];
@@ -291,23 +296,28 @@ const REACTION_EMOJIS = ["🔥", "😂", "👏", "😮", "💀"];
 // POST /interview-questions/:id/react  { emoji }
 // Toggles - reacting again with the same emoji removes it.
 leagueRouter.post("/interview-questions/:id/react", requireMember, async (req, res) => {
-  const { emoji } = req.body;
-  if (!REACTION_EMOJIS.includes(emoji)) {
-    return res.status(400).json({ error: `emoji must be one of: ${REACTION_EMOJIS.join(" ")}` });
+  try {
+    const { emoji } = req.body;
+    if (!REACTION_EMOJIS.includes(emoji)) {
+      return res.status(400).json({ error: `emoji must be one of: ${REACTION_EMOJIS.join(" ")}` });
+    }
+    const existing = await query(
+      `select id from interview_reactions where interview_id = $1 and member_id = $2 and emoji = $3`,
+      [req.params.id, req.member!.id, emoji]
+    );
+    if (existing.rows.length > 0) {
+      await query(`delete from interview_reactions where id = $1`, [existing.rows[0].id]);
+      return res.json({ success: true, reacted: false });
+    }
+    await query(
+      `insert into interview_reactions (interview_id, member_id, emoji) values ($1, $2, $3)`,
+      [req.params.id, req.member!.id, emoji]
+    );
+    res.json({ success: true, reacted: true });
+  } catch (err) {
+    console.error("interview react failed:", err);
+    res.status(500).json({ error: "Failed to react." });
   }
-  const existing = await query(
-    `select id from interview_reactions where interview_id = $1 and member_id = $2 and emoji = $3`,
-    [req.params.id, req.member!.id, emoji]
-  );
-  if (existing.rows.length > 0) {
-    await query(`delete from interview_reactions where id = $1`, [existing.rows[0].id]);
-    return res.json({ success: true, reacted: false });
-  }
-  await query(
-    `insert into interview_reactions (interview_id, member_id, emoji) values ($1, $2, $3)`,
-    [req.params.id, req.member!.id, emoji]
-  );
-  res.json({ success: true, reacted: true });
 });
 
 // GET /leagues/:id/interviews
