@@ -725,12 +725,13 @@ adminRouter.delete("/schedule/:id", async (req, res) => {
 });
 
 // POST /admin/bonus-picks/:id/set-points  { points }
-// Manual override for a single bonus pick's points - a fallback for
-// when automated ESPN syncing fails (e.g. the server's requests are
-// blocked/throttled but a manual curl from a normal machine isn't).
-// Bypasses all ESPN fetching entirely - just sets the number directly.
-adminRouter.post("/bonus-picks/:id/set-points", async (req, res) => {
-  const { points } = req.body;
+// Also registered as GET with a ?points= query param - a plain POST
+// can't be triggered by just opening a URL in a phone browser (no
+// terminal/app needed), so this needs a GET-friendly path too for
+// the manual-fallback workflow to actually be usable from a phone.
+async function setPointsHandler(req: any, res: any) {
+  const rawPoints = req.body?.points ?? req.query?.points;
+  const points = typeof rawPoints === "string" ? Number(rawPoints) : rawPoints;
   if (typeof points !== "number" || !Number.isFinite(points)) {
     return res.status(400).json({ error: "points must be a number." });
   }
@@ -749,8 +750,10 @@ adminRouter.post("/bonus-picks/:id/set-points", async (req, res) => {
   if (result.rows.length === 0) {
     return res.status(404).json({ error: "Bonus pick not found." });
   }
-  res.json({ success: true });
-});
+  res.json({ success: true, points });
+}
+adminRouter.post("/bonus-picks/:id/set-points", setPointsHandler);
+adminRouter.get("/bonus-picks/:id/set-points", setPointsHandler);
 
 // GET /admin/bonus-picks?roundId=xxx
 // Lists bonus picks for a round with enough context (player name,
