@@ -264,6 +264,9 @@ export async function syncBonusPicksForRound(roundId: string): Promise<void> {
         const lost = Math.max(0, row.current_position - row.start_position);
         points = round.bonus_category === "POSITIONS_GAINED" ? gained : lost;
       }
+      console.log(
+        `[bonusPickSync] player ${pick.tournament_player_id} round ${round.round_number} (${round.bonus_category}): rowFound=${!!row} startPosition=${row?.start_position ?? "null"} currentPosition=${row?.current_position ?? "null"} -> ${points}pts`
+      );
       await query(`update bonus_picks set points = $1, breakdown = $2, last_synced_at = now() where id = $3`, [
         points,
         JSON.stringify({ startPosition: row?.start_position ?? null, currentPosition: row?.current_position ?? null }),
