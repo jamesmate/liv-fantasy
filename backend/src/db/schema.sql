@@ -339,3 +339,12 @@ create table if not exists bonus_picks (
   unique (round_id, member_id)
 );
 create index if not exists idx_bonus_picks_round on bonus_picks(round_id);
+
+-- Set when the owner manually corrects a bonus pick's points (e.g.
+-- via the /admin/bonus-picks/:id/set-points fallback workflow, needed
+-- while the hole-based categories can't be reliably auto-synced from
+-- this server - see bonusPickSync.ts). The automated sync MUST skip
+-- any row with this flag set, or it'll silently overwrite the manual
+-- fix back to 0/stale on its next run - which is exactly what
+-- happened before this flag existed.
+alter table bonus_picks add column if not exists manually_overridden boolean not null default false;

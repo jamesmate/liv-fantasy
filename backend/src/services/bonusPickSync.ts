@@ -239,7 +239,7 @@ export async function syncBonusPicksForRound(roundId: string): Promise<void> {
     `select bp.id, bp.tournament_player_id, tp.espn_player_id
        from bonus_picks bp
        join tournament_players tp on tp.id = bp.tournament_player_id
-      where bp.round_id = $1`,
+      where bp.round_id = $1 and bp.manually_overridden = false`,
     [roundId]
   );
   if (picksResult.rows.length === 0) return;

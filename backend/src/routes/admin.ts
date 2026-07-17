@@ -738,7 +738,7 @@ async function setPointsHandler(req: any, res: any) {
 
   const result = await query<{ id: string }>(
     `update bonus_picks bp
-        set points = $1, last_synced_at = now()
+        set points = $1, manually_overridden = true, last_synced_at = now()
        from rounds r, tournaments t
       where bp.id = $2
         and bp.round_id = r.id
