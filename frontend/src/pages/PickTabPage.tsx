@@ -297,6 +297,8 @@ export default function PickTabPage() {
       scoreToPar,
       hasDoublePlay: liveHasDoublePlay,
       isCompleted: scored?.player_status === "completed",
+      playerStatus: scored?.player_status,
+      teeTime: scored?.tee_time ?? null,
       roundScores: p?.round_scores.map((rs) => ({
         roundNumber: rs.round_number,
         scoreToPar: rs.score_to_par,

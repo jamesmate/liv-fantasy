@@ -293,6 +293,7 @@ export interface MyPickWithScore {
   effective_score_to_par: number;
   has_double_play: boolean;
   player_status: string;
+  tee_time: string | null;
 }
 
 export type DoublePlayStatus =

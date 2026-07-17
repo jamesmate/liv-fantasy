@@ -26,6 +26,8 @@ interface LineupSlot {
   scoreToPar?: number | null; // shown below the sprite once the round is locked/scored
   hasDoublePlay?: boolean;
   isCompleted?: boolean;
+  playerStatus?: string;
+  teeTime?: string | null;
   roundScores?: { roundNumber: number; scoreToPar: number; fieldAvg?: number | null; fieldBest?: number | null }[];
   currentRoundNumber?: number;
 }
@@ -44,6 +46,14 @@ interface SelectedLineupProps {
 function formatToPar(n: number): string {
   if (n === 0) return "E";
   return n > 0 ? `+${n}` : `${n}`;
+}
+
+// Shown in place of a score for a pick whose round hasn't started
+// yet - a raw score defaulting to "E" (even par) there would be
+// actively misleading, implying they'd played and were level, rather
+// than not having teed off at all.
+function formatTeeTime(teeTime: string): string {
+  return new Date(teeTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
 /**
@@ -159,29 +169,45 @@ export function SelectedLineup({
               >
                 {slot ? slot.name.split(" ").slice(-1)[0] : "—"}
               </Text>
-              {showScores && slot && slot.scoreToPar !== undefined && slot.scoreToPar !== null && (
-                <Group gap={3} wrap="nowrap" justify="center">
+              {showScores && slot && slot.playerStatus === "not_started" ? (
+                slot.teeTime && (
                   <Text
-                    size="10px"
-                    fw={700}
+                    size="9px"
+                    fw={600}
                     ta="center"
-                    style={{
-                      backgroundColor: getScoreColor(slot.scoreToPar),
-                      color: getScoreTextColor(slot.scoreToPar),
-                      borderRadius: 3,
-                      minWidth: 22,
-                      padding: "1px 3px",
-                      lineHeight: "15px",
-                    }}
+                    style={{ color: "white", textShadow: "1px 1px 2px rgba(0,0,0,0.8)" }}
                   >
-                    {formatToPar(slot.scoreToPar)}
+                    {formatTeeTime(slot.teeTime)}
                   </Text>
-                  {slot.hasDoublePlay && !slot.isCompleted && (
-                    <Text size="10px" style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.8)" }}>
-                      ⚡
+                )
+              ) : (
+                showScores &&
+                slot &&
+                slot.scoreToPar !== undefined &&
+                slot.scoreToPar !== null && (
+                  <Group gap={3} wrap="nowrap" justify="center">
+                    <Text
+                      size="10px"
+                      fw={700}
+                      ta="center"
+                      style={{
+                        backgroundColor: getScoreColor(slot.scoreToPar),
+                        color: getScoreTextColor(slot.scoreToPar),
+                        borderRadius: 3,
+                        minWidth: 22,
+                        padding: "1px 3px",
+                        lineHeight: "15px",
+                      }}
+                    >
+                      {formatToPar(slot.scoreToPar)}
                     </Text>
-                  )}
-                </Group>
+                    {slot.hasDoublePlay && !slot.isCompleted && (
+                      <Text size="10px" style={{ textShadow: "1px 1px 2px rgba(0,0,0,0.8)" }}>
+                        ⚡
+                      </Text>
+                    )}
+                  </Group>
+                )
               )}
             </Stack>
           );

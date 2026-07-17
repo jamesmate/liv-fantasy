@@ -339,19 +339,21 @@ function TeamRow({
                           )}
                         </Group>
                         <Stack gap={0} align="flex-end" style={{ flexShrink: 0 }}>
-                          <Text
-                            size="xs"
-                            fw={600}
-                            c={
-                              pick.scoreToPar < 0
-                                ? "mint.7"
-                                : pick.scoreToPar > 0
-                                ? "coral.6"
-                                : "forest.6"
-                            }
-                          >
-                            {formatToPar(pick.scoreToPar)}
-                          </Text>
+                          {pick.status !== "not_started" && (
+                            <Text
+                              size="xs"
+                              fw={600}
+                              c={
+                                pick.scoreToPar < 0
+                                  ? "mint.7"
+                                  : pick.scoreToPar > 0
+                                  ? "coral.6"
+                                  : "forest.6"
+                              }
+                            >
+                              {formatToPar(pick.scoreToPar)}
+                            </Text>
+                          )}
                           <Text size="9px" c="forest.3">
                             {formatThruOrTeeTime(pick.status, pick.thru, pick.teeTime)}
                           </Text>

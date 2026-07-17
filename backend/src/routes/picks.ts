@@ -136,7 +136,7 @@ picksRouter.get("/:roundId/my-picks-with-scores", requireMember, async (req, res
 
   const result = await query(
     `select tournament_player_id, player_name, score_to_par, effective_score_to_par,
-            has_double_play, player_status
+            has_double_play, player_status, tee_time
        from pick_scores
       where round_id = $1 and member_id = $2`,
     [roundId, memberId]
