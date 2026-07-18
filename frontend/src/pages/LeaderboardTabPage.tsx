@@ -384,8 +384,9 @@ function TeamRow({
                               {pick.hasDoublePlay && (
                                 <Text size="9px" c="forest.4">
                                   {formatToPar(pick.scoreToPar)}
-                                  <Text span size="7px">
-                                    (x2)
+                                  <Text span size="8px">
+                                    {" "}
+                                    ⚡
                                   </Text>
                                   {" → "}
                                 </Text>
