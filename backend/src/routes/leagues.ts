@@ -526,8 +526,9 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
     round_number: number;
     round_total: number;
     round_fully_scored: boolean;
+    pick_count: number;
   }>(
-    `select member_id, round_number, round_total, round_fully_scored
+    `select member_id, round_number, round_total, round_fully_scored, pick_count
        from team_round_totals
       where tournament_id = $1`,
     [tournamentId]
@@ -655,6 +656,12 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
         roundNumber,
         total: totalRow?.round_total ?? null,
         fullyScored: totalRow?.round_fully_scored ?? false,
+        // A round can have a non-null total with zero picks made -
+        // that's the "field average + 5" penalty for not picking at
+        // all (see team_round_totals), not a real earned score. The
+        // frontend uses this to style it distinctly (purple) rather
+        // than the normal red/green good/bad coloring.
+        isDefaulted: totalRow !== undefined && totalRow.round_total !== null && totalRow.pick_count === 0,
         bonusPick: bonusPick
           ? { playerName: bonusPick.player_name, points: bonusPick.points, category: bonusPick.bonus_category }
           : null,

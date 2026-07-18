@@ -235,6 +235,7 @@ function TeamRow({
           {team.rounds.map((r) => {
             const bonusPoints = r.bonusPick?.points ?? null;
             const value = showBonus ? bonusPoints : r.total;
+            const isDefaulted = !showBonus && r.isDefaulted;
             return (
               <Text
                 key={r.roundNumber}
@@ -242,7 +243,9 @@ function TeamRow({
                 ta="center"
                 fw={600}
                 c={
-                  value === null
+                  isDefaulted
+                    ? "#9333ea"
+                    : value === null
                     ? "forest.3"
                     : showBonus
                     ? value > 0
@@ -256,6 +259,7 @@ function TeamRow({
                 }
                 style={{ flex: 0.7 }}
               >
+                {isDefaulted && "* "}
                 {value === null ? "-" : showBonus ? value : formatToPar(value)}
               </Text>
             );
