@@ -149,12 +149,12 @@ export const BONUS_CATEGORY_INFO: Record<string, { label: string; description: s
   },
   POSITIONS_GAINED: {
     label: "Climber",
-    description: "+1 point per leaderboard position gained today.",
+    description: "+0.5 points (rounded) per leaderboard position gained today.",
     emoji: "📈",
   },
   POSITIONS_LOST: {
     label: "Bottler",
-    description: "+1 point per leaderboard position lost today.",
+    description: "+0.5 points (rounded) per leaderboard position lost today.",
     emoji: "📉",
   },
 };

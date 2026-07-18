@@ -18,12 +18,12 @@ export const BONUS_CATEGORIES: BonusCategory[] = [
   {
     key: "POSITIONS_GAINED",
     label: "Climber",
-    description: "+1 point for every leaderboard position gained today (relative to where they started the round).",
+    description: "+0.5 points (rounded) for every leaderboard position gained today (relative to where they started the round).",
   },
   {
     key: "POSITIONS_LOST",
     label: "Bottler",
-    description: "+1 point for every leaderboard position lost today (relative to where they started the round).",
+    description: "+0.5 points (rounded) for every leaderboard position lost today (relative to where they started the round).",
   },
 ];
 
@@ -262,7 +262,8 @@ export async function syncBonusPicksForRound(roundId: string): Promise<void> {
       if (row && row.start_position !== null && row.current_position !== null) {
         const gained = Math.max(0, row.start_position - row.current_position);
         const lost = Math.max(0, row.current_position - row.start_position);
-        points = round.bonus_category === "POSITIONS_GAINED" ? gained : lost;
+        const positions = round.bonus_category === "POSITIONS_GAINED" ? gained : lost;
+        points = Math.round(positions * 0.5);
       }
       console.log(
         `[bonusPickSync] player ${pick.tournament_player_id} round ${round.round_number} (${round.bonus_category}): rowFound=${!!row} startPosition=${row?.start_position ?? "null"} currentPosition=${row?.current_position ?? "null"} -> ${points}pts`
