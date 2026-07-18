@@ -187,6 +187,7 @@ export interface LeaderboardRoundPick {
   proTeamName: string | null;
   countryCode: string | null;
   scoreToPar: number;
+  effectiveScoreToPar: number;
   hasDoublePlay: boolean;
   status: string;
   thru: number | null;

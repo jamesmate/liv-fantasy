@@ -541,13 +541,14 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
     pro_team_name: string | null;
     country_code: string | null;
     score_to_par: number;
+    effective_score_to_par: number;
     has_double_play: boolean;
     player_status: string;
     thru: number | null;
     tee_time: string | null;
   }>(
     `select member_id, round_number, tournament_player_id, player_name, pro_team_name, country_code,
-            score_to_par, has_double_play, player_status, thru, tee_time
+            score_to_par, effective_score_to_par, has_double_play, player_status, thru, tee_time
        from pick_scores
       where tournament_id = $1
       order by round_number asc`,
@@ -664,6 +665,7 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
             proTeamName: p.pro_team_name,
             countryCode: p.country_code,
             scoreToPar: p.score_to_par,
+            effectiveScoreToPar: p.effective_score_to_par,
             hasDoublePlay: p.has_double_play,
             status: p.player_status,
             thru: p.thru,

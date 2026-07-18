@@ -380,19 +380,30 @@ function TeamRow({
                         </Group>
                         <Stack gap={0} align="flex-end" style={{ flexShrink: 0 }}>
                           {pick.status !== "not_started" && (
-                            <Text
-                              size="xs"
-                              fw={600}
-                              c={
-                                pick.scoreToPar < 0
-                                  ? "mint.7"
-                                  : pick.scoreToPar > 0
-                                  ? "coral.6"
-                                  : "forest.6"
-                              }
-                            >
-                              {formatToPar(pick.scoreToPar)}
-                            </Text>
+                            <Group gap={2} wrap="nowrap" justify="flex-end">
+                              {pick.hasDoublePlay && (
+                                <Text size="9px" c="forest.4">
+                                  {formatToPar(pick.scoreToPar)}
+                                  <Text span size="7px">
+                                    (x2)
+                                  </Text>
+                                  {" → "}
+                                </Text>
+                              )}
+                              <Text
+                                size="xs"
+                                fw={600}
+                                c={
+                                  pick.effectiveScoreToPar < 0
+                                    ? "mint.7"
+                                    : pick.effectiveScoreToPar > 0
+                                    ? "coral.6"
+                                    : "forest.6"
+                                }
+                              >
+                                {formatToPar(pick.effectiveScoreToPar)}
+                              </Text>
+                            </Group>
                           )}
                           <Text size="9px" c="forest.3">
                             {formatThruOrTeeTime(pick.status, pick.thru, pick.teeTime)}
