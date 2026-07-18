@@ -82,18 +82,55 @@ left join player_round_scores s
 
 -- Convenience view: team total per round (sum of 4 picks' EFFECTIVE
 -- scores, i.e. with Double Play already applied).
+-- Every round gets a row for every member of the league, not just
+-- ones who actually made picks - the old version of this view only
+-- had a row when pick_scores had matching data, which meant a team
+-- that made ZERO picks for a round simply didn't appear at all. That
+-- silently read as "no penalty" downstream (their tournament total
+-- just skipped that round entirely), which was actually BETTER than
+-- picking and having a bad round - a real incentive problem where
+-- doing nothing could beat trying and doing poorly.
+--
+-- Now: if a round has locked (its locks_at has passed) and a member
+-- made no picks at all, their round_total is set to that round's
+-- FIELD AVERAGE + 5 - contextual (a brutal weather day penalizes
+-- more than an easy scoring day, same as everything else in this app
+-- that compares against field average) rather than an arbitrary fixed
+-- number, and always clearly worse than doing nothing used to be.
+-- Rounds that haven't locked yet still show null (no penalty - they
+-- still have time to pick).
 create or replace view team_round_totals as
 select
-  round_id,
-  member_id,
-  tournament_id,
-  round_number,
-  sum(effective_score_to_par) as round_total,
-  count(*) as pick_count,
-  bool_and(player_status = 'completed') as round_fully_scored,
-  bool_or(has_double_play) as used_double_play_this_round
-from pick_scores
-group by round_id, member_id, tournament_id, round_number;
+  r.id as round_id,
+  m.id as member_id,
+  t.id as tournament_id,
+  r.round_number,
+  coalesce(
+    ps.round_total,
+    case
+      when r.locks_at is not null and r.locks_at < now() then (
+        select (coalesce(round(avg(prs.score_to_par)), 0) + 5)::int
+          from player_round_scores prs
+         where prs.round_id = r.id and prs.score_to_par is not null
+      )
+      else null
+    end
+  ) as round_total,
+  coalesce(ps.pick_count, 0) as pick_count,
+  coalesce(ps.round_fully_scored, false) as round_fully_scored,
+  coalesce(ps.used_double_play_this_round, false) as used_double_play_this_round
+from rounds r
+join tournaments t on t.id = r.tournament_id
+join members m on m.league_id = t.league_id
+left join (
+  select round_id, member_id,
+         sum(effective_score_to_par) as round_total,
+         count(*) as pick_count,
+         bool_and(player_status = 'completed') as round_fully_scored,
+         bool_or(has_double_play) as used_double_play_this_round
+    from pick_scores
+   group by round_id, member_id
+) ps on ps.round_id = r.id and ps.member_id = m.id;
 
 -- Convenience view: running tournament total per member across all rounds played so far.
 create or replace view tournament_standings as
