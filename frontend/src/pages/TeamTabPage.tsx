@@ -91,8 +91,8 @@ export default function TeamTabPage() {
             label="Auto-assign if I forget to pick"
             description={
               autoAssign
-                ? "On - a locked round with no picks gets 4 random eligible players instead of the penalty."
-                : "Off - a locked round with no picks scores the field average + 5 shots."
+                ? "On - any empty pick slots at lock time get filled with random eligible players automatically."
+                : "Off - a completely empty round scores the field average + 5 shots; a partial pick just scores whichever players you did pick, with no penalty."
             }
             checked={autoAssign}
             onChange={(e) => setAutoAssign(e.currentTarget.checked)}
