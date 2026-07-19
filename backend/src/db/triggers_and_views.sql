@@ -126,7 +126,13 @@ left join (
   select round_id, member_id,
          sum(effective_score_to_par) as round_total,
          count(*) as pick_count,
-         bool_and(player_status = 'completed') as round_fully_scored,
+         -- A player who missed the cut or withdrew is DONE playing
+         -- this round just as much as one who completed it - they
+         -- won't score any further. Only checking for literal
+         -- 'completed' meant a team with 3 finished picks and 1 who
+         -- missed the cut never showed as fully scored, even though
+         -- nothing was left to happen for any of their 4 picks.
+         bool_and(player_status in ('completed', 'missed_cut', 'withdrawn')) as round_fully_scored,
          bool_or(has_double_play) as used_double_play_this_round
     from pick_scores
    group by round_id, member_id

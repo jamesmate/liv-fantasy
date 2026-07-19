@@ -258,7 +258,7 @@ function TeamRow({
           {team.rounds.map((r) => {
             const bonusPoints = r.bonusPick?.points ?? null;
             const value = showBonus ? bonusPoints : r.total;
-            const isDefaulted = !showBonus && r.isDefaulted;
+            const isDefaulted = !showBonus && r.picks.length === 0 && r.total !== null;
             const isLiveColumn = r.roundNumber === liveRoundNumber;
             return (
               <Text
@@ -372,17 +372,19 @@ function TeamRow({
               )}
             </Group>
           </Box>
-          {team.rounds.map((round) => (
+          {team.rounds.map((round) => {
+            const isRoundDefaulted = round.picks.length === 0 && round.total !== null;
+            return (
             <Box key={round.roundNumber} mb={6}>
               {round.roundNumber === liveRoundNumber && (
                 <Text size="9px" fw={800} c="tangerine.7" tt="uppercase" mb={1}>
                   Live
                 </Text>
               )}
-              <Text size="xs" fw={700} c={round.isDefaulted ? "#9333ea" : "forest.2"} mb={4}>
+              <Text size="xs" fw={700} c={isRoundDefaulted ? "#9333ea" : "forest.2"} mb={4}>
                 Round {round.roundNumber}
                 {round.total !== null ? ` | ${formatToPar(round.total)}` : ""}
-                {round.isDefaulted && " (NP)"}
+                {isRoundDefaulted && " (NP)"}
               </Text>
               {round.picks.length === 0 ? (
                 <Text size="xs" c="forest.3" pl="xs">
@@ -497,7 +499,8 @@ function TeamRow({
                 </Group>
               )}
             </Box>
-          ))}
+            );
+          })}
         </Box>
       </Collapse>
 
