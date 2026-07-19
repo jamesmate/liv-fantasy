@@ -90,6 +90,22 @@ export interface HueSatTarget {
   saturation: number; // 0-1
 }
 
+/**
+ * Converts a hex color (e.g. "#2d5a3d") to the hue/saturation target
+ * format this module works in - used for overriding a region's color
+ * with something chosen outside the deterministic per-player palette
+ * (e.g. a member's own team color), while still going through the
+ * same HSV-preserving-brightness recolor logic as everything else.
+ */
+export function hexToHueSat(hex: string): HueSatTarget {
+  const clean = hex.replace("#", "");
+  const r = parseInt(clean.slice(0, 2), 16);
+  const g = parseInt(clean.slice(2, 4), 16);
+  const b = parseInt(clean.slice(4, 6), 16);
+  const [h, s] = rgbToHsv(r, g, b);
+  return { hue: h, saturation: s };
+}
+
 const baseImageCache = new Map<SpritePose, HTMLImageElement>();
 const baseImageLoadPromises = new Map<SpritePose, Promise<HTMLImageElement>>();
 

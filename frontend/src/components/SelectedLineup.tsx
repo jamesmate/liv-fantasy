@@ -1,5 +1,6 @@
 import { Group, Text, Stack, Box } from "@mantine/core";
 import { AnimatedGolferSprite } from "./sprites/AnimatedGolferSprite";
+import { hexToHueSat } from "./sprites/recolorSprite";
 import lineupBackground from "../assets/lineup-background.png";
 
 // Same raw-score red-neutral-green gradient used on the player list
@@ -141,25 +142,13 @@ export function SelectedLineup({
           return (
             <Stack key={slot?.id ?? `empty-${slotIndex}`} align="center" gap={2} w={60}>
               {slot ? (
-                <div
-                  style={{
-                    width: 58,
-                    height: 58,
-                    borderRadius: "50%",
-                    background: teamColor ? `${teamColor}33` : "transparent",
-                    border: teamColor ? `2px solid ${teamColor}` : "none",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  <AnimatedGolferSprite
-                    playerName={slot.name}
-                    size={52}
-                    lineupIndex={slotIndex}
-                    isTopScorer={(!!topScorerName && slot.name === topScorerName) || !!slot.hasDoublePlay}
-                  />
-                </div>
+                <AnimatedGolferSprite
+                  playerName={slot.name}
+                  size={52}
+                  lineupIndex={slotIndex}
+                  isTopScorer={(!!topScorerName && slot.name === topScorerName) || !!slot.hasDoublePlay}
+                  clothingOverride={teamColor ? hexToHueSat(teamColor) : null}
+                />
               ) : (
                 <div
                   style={{

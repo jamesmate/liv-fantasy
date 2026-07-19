@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { getSpritePaletteWithPose } from "./spritePalette";
-import { renderRecoloredSprite, getSpriteDimensions } from "./recolorSprite";
+import { renderRecoloredSprite, getSpriteDimensions, HueSatTarget } from "./recolorSprite";
 import "./sprite-animations.css";
 
 interface PixelGolferSpriteProps {
@@ -17,6 +17,14 @@ interface PixelGolferSpriteProps {
    * scores; this component doesn't fetch or compare anything itself.
    */
   isTopScorer?: boolean;
+  /**
+   * Overrides the player's normal deterministic clothing color (see
+   * spritePalette.ts) with a specific hue/sat - used to show a
+   * member's own team color on their picked players' sprites, rather
+   * than each player's usual per-name-derived color. Hair/skin/cap
+   * stay on the normal deterministic palette either way.
+   */
+  clothingOverride?: HueSatTarget | null;
 }
 
 /**
@@ -45,6 +53,7 @@ export function PixelGolferSprite({
   facing = "right",
   bobOffsetClass,
   isTopScorer = false,
+  clothingOverride = null,
 }: PixelGolferSpriteProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const palette = useMemo(
@@ -63,13 +72,13 @@ export function PixelGolferSprite({
       palette.pose,
       {
         hair: palette.hair,
-        clothing: palette.clothing,
+        clothing: clothingOverride ?? palette.clothing,
         skin: palette.skin,
         cap: palette.cap,
       },
       pxUnit
     ).catch((err) => console.error("Sprite recolor failed:", err));
-  }, [palette, pxUnit]);
+  }, [palette, pxUnit, clothingOverride]);
 
   const className = bobbing
     ? ["pixel-sprite-bob", bobOffsetClass].filter(Boolean).join(" ")

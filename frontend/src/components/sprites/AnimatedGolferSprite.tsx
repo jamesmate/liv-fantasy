@@ -1,4 +1,5 @@
 import { PixelGolferSprite } from "./PixelGolferSprite";
+import { HueSatTarget } from "./recolorSprite";
 import "./sprite-animations.css";
 
 interface AnimatedGolferSpriteProps {
@@ -10,6 +11,8 @@ interface AnimatedGolferSpriteProps {
   runOn?: boolean;
   /** True when this player currently has the best score in the round - shows the golf-club pose. */
   isTopScorer?: boolean;
+  /** See PixelGolferSprite - overrides the deterministic clothing color, e.g. with a member's team color. */
+  clothingOverride?: HueSatTarget | null;
 }
 
 const BOB_OFFSET_CLASSES = ["", "bob-offset-1", "bob-offset-2", "bob-offset-3"];
@@ -27,6 +30,7 @@ export function AnimatedGolferSprite({
   lineupIndex = 0,
   runOn = true,
   isTopScorer = false,
+  clothingOverride = null,
 }: AnimatedGolferSpriteProps) {
   const bobOffsetClass = BOB_OFFSET_CLASSES[lineupIndex % BOB_OFFSET_CLASSES.length];
   // Earlier lineup slots run on from further away and arrive slightly
@@ -53,6 +57,7 @@ export function AnimatedGolferSprite({
         bobbing
         bobOffsetClass={bobOffsetClass}
         isTopScorer={isTopScorer}
+        clothingOverride={clothingOverride}
       />
     </div>
   );
