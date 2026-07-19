@@ -733,8 +733,14 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
   });
 
   // Sort by overall total ascending (lowest/best score first), same
-  // convention as golf leaderboards.
-  result.sort((a, b) => a.overallTotal - b.overallTotal);
+  // convention as golf leaderboards. Ties broken by total bonus
+  // points earned across the whole tournament (more = ranked higher) -
+  // rewards teams who've actually been engaging with the bonus pick
+  // feature when the real golf scores end up dead level.
+  function totalBonusPoints(team: (typeof result)[number]): number {
+    return team.rounds.reduce((sum, r) => sum + (r.bonusPick?.points ?? 0), 0);
+  }
+  result.sort((a, b) => a.overallTotal - b.overallTotal || totalBonusPoints(b) - totalBonusPoints(a));
 
   res.json({ tournament: { id: tournamentId, name: tournamentName, totalRounds }, teams: result });
   } catch (err) {

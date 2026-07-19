@@ -166,16 +166,19 @@ export default function LeaderboardTabPage() {
           // teams tied on overallTotal show the same position rather
           // than an arbitrary tiebreak from array order.
           let previousTotal: number | null = null;
+          let previousBonus: number | null = null;
           let previousPosition = 0;
           let rowsSeen = 0;
 
           return data.teams.map((team) => {
             rowsSeen++;
+            const teamBonusTotal = team.rounds.reduce((sum, r) => sum + (r.bonusPick?.points ?? 0), 0);
             const position =
-              previousTotal !== null && team.overallTotal === previousTotal
+              previousTotal !== null && team.overallTotal === previousTotal && teamBonusTotal === previousBonus
                 ? previousPosition
                 : rowsSeen;
             previousTotal = team.overallTotal;
+            previousBonus = teamBonusTotal;
             previousPosition = position;
 
             return (
