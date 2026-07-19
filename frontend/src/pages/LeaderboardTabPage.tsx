@@ -108,12 +108,22 @@ export default function LeaderboardTabPage() {
   }
 
   const totalRounds = data.tournament.totalRounds;
-  // The one round that's currently in progress - has some real score
-  // data but isn't fully scored for at least one team yet. Only ever
-  // expected to match a single round at a time, since rounds proceed
-  // sequentially.
+  // The one round that's currently in progress. Deliberately NOT just
+  // "the first round found with total !== null && !fullyScored" -
+  // that approach picks up whichever round appears FIRST when
+  // scanning teams in array order, which could easily be an OLDER
+  // round that's lagging/stale for just one team, rather than the
+  // actual current round everyone else has moved on to. Instead: find
+  // the LATEST round that has started for anyone, then confirm THAT
+  // specific round is still incomplete for someone.
+  const startedRounds = data.teams.flatMap((t) => t.rounds).filter((r) => r.total !== null);
+  const maxStartedRoundNumber =
+    startedRounds.length > 0 ? Math.max(...startedRounds.map((r) => r.roundNumber)) : null;
   const liveRoundNumber =
-    data.teams.flatMap((t) => t.rounds).find((r) => r.total !== null && !r.fullyScored)?.roundNumber ?? null;
+    maxStartedRoundNumber !== null &&
+    startedRounds.some((r) => r.roundNumber === maxStartedRoundNumber && !r.fullyScored)
+      ? maxStartedRoundNumber
+      : null;
 
   return (
     <Box p="md">
@@ -157,18 +167,9 @@ export default function LeaderboardTabPage() {
             Team
           </Text>
           {Array.from({ length: totalRounds }).map((_, i) => (
-            <Box
-              key={i}
-              style={{
-                flex: 0.7,
-                background: i + 1 === liveRoundNumber ? "white" : "transparent",
-                borderRadius: 6,
-              }}
-            >
-              <Text size="xs" fw={700} c="forest.8" ta="center">
-                R{i + 1}
-              </Text>
-            </Box>
+            <Text key={i} size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.7 }}>
+              R{i + 1}
+            </Text>
           ))}
           <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.8 }}>
             Tot
@@ -260,50 +261,42 @@ function TeamRow({
             const isDefaulted = !showBonus && r.isDefaulted;
             const isLiveColumn = r.roundNumber === liveRoundNumber;
             return (
-              <Box
+              <Text
                 key={r.roundNumber}
-                style={{
-                  flex: 0.7,
-                  background: isLiveColumn ? "white" : "transparent",
-                  borderRadius: 6,
-                  padding: "2px 0",
-                }}
+                size="sm"
+                ta="center"
+                fw={600}
+                c={
+                  isDefaulted
+                    ? "#9333ea"
+                    : value === null
+                    ? "forest.3"
+                    : showBonus
+                    ? value > 0
+                      ? "tangerine.7"
+                      : "forest.5"
+                    : value < 0
+                    ? "mint.7"
+                    : value > 0
+                    ? "coral.6"
+                    : "forest.6"
+                }
+                style={{ flex: 0.7 }}
               >
-                <Text
-                  size="sm"
-                  ta="center"
-                  fw={600}
-                  c={
-                    isDefaulted
-                      ? "#9333ea"
-                      : value === null
-                      ? "forest.3"
-                      : showBonus
-                      ? value > 0
-                        ? "tangerine.7"
-                        : "forest.5"
-                      : value < 0
-                      ? "mint.7"
-                      : value > 0
-                      ? "coral.6"
-                      : "forest.6"
-                  }
-                >
-                  {value === null ? "-" : showBonus ? value : formatToPar(value)}
-                  {isDefaulted && (
-                    <Text span size="9px" fw={700}>
-                      {" "}
-                      (NP)
-                    </Text>
-                  )}
-                  {isLiveColumn && !isDefaulted && r.fullyScored && (
-                    <Text span size="9px" fw={700} c="forest.3">
-                      {" "}
-                      F
-                    </Text>
-                  )}
-                </Text>
-              </Box>
+                {value === null ? "-" : showBonus ? value : formatToPar(value)}
+                {isDefaulted && (
+                  <Text span size="9px" fw={700}>
+                    {" "}
+                    (NP)
+                  </Text>
+                )}
+                {isLiveColumn && !isDefaulted && r.fullyScored && (
+                  <Text span size="9px" fw={700} c="forest.3">
+                    {" "}
+                    F
+                  </Text>
+                )}
+              </Text>
             );
           })}
           <Group gap={4} wrap="nowrap" justify="center" style={{ flex: 0.8 }}>
@@ -381,6 +374,11 @@ function TeamRow({
           </Box>
           {team.rounds.map((round) => (
             <Box key={round.roundNumber} mb={6}>
+              {round.roundNumber === liveRoundNumber && (
+                <Text size="9px" fw={800} c="tangerine.7" tt="uppercase" mb={1}>
+                  Live
+                </Text>
+              )}
               <Text size="xs" fw={700} c={round.isDefaulted ? "#9333ea" : "forest.2"} mb={4}>
                 Round {round.roundNumber}
                 {round.total !== null ? ` | ${formatToPar(round.total)}` : ""}
