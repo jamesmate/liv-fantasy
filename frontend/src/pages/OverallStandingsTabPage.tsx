@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { Box, Text, Stack, Group, Center, UnstyledButton, Collapse } from "@mantine/core";
 import { IconMedal, IconChevronDown, IconChevronUp, IconFlame, IconStar, IconGolf } from "@tabler/icons-react";
-import { api, PodiumStanding, MemberCareerStats } from "../api/client";
+import { api, PodiumStanding, MemberCareerStats, LivStanding } from "../api/client";
 import { LoadingIndicator } from "../components/LoadingIndicator";
 
 const MEDAL_COLORS = ["#d4af37", "#a8a8a8", "#b08d57"]; // gold, silver, bronze
@@ -32,7 +32,9 @@ function getPercentTextColor(percent: number): string {
 
 export default function OverallStandingsTabPage() {
   const { leagueId } = useParams<{ leagueId: string }>();
+  const [mode, setMode] = useState<"all" | "liv">("all");
   const [standings, setStandings] = useState<PodiumStanding[]>([]);
+  const [livStandings, setLivStandings] = useState<LivStanding[]>([]);
   const [careerStats, setCareerStats] = useState<MemberCareerStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -40,14 +42,36 @@ export default function OverallStandingsTabPage() {
 
   useEffect(() => {
     if (!leagueId) return;
-    Promise.all([api.getPodiumStandings(leagueId), api.getCareerStats(leagueId)])
-      .then(([s, c]) => {
+    Promise.all([api.getPodiumStandings(leagueId), api.getCareerStats(leagueId), api.getLivStandings(leagueId)])
+      .then(([s, c, liv]) => {
         setStandings(s);
         setCareerStats(c);
+        setLivStandings(liv);
       })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
   }, [leagueId]);
+
+  // Normalized to the same shape as PodiumStanding so the existing
+  // table render logic below can be reused as-is for LIV mode - career
+  // stats (Hot Hand Score, favourite player etc) are computed
+  // globally, not per-tour, so the expandable details section is
+  // simply not shown in LIV mode rather than mixing global stats into
+  // a tour-scoped table.
+  const displayedStandings: PodiumStanding[] =
+    mode === "liv"
+      ? livStandings.map((s) => ({
+          member_id: s.member_id,
+          current_team_name: s.team_name,
+          display_name: s.display_name,
+          firsts: s.firsts,
+          seconds: s.seconds,
+          thirds: s.thirds,
+          tournaments_played: s.tournaments_played,
+          career_total_to_par: s.career_total_to_par,
+          total_points: s.total_points,
+        }))
+      : standings;
 
   if (loading) {
     return (
@@ -65,7 +89,7 @@ export default function OverallStandingsTabPage() {
     );
   }
 
-  if (standings.length === 0 || standings.every((s) => s.tournaments_played === 0)) {
+  if (mode === "all" && (standings.length === 0 || standings.every((s) => s.tournaments_played === 0))) {
     return (
       <Text c="forest.2" ta="center" p="md">
         No completed tournaments yet - overall standings appear once a tournament is marked
@@ -74,8 +98,20 @@ export default function OverallStandingsTabPage() {
     );
   }
 
+  if (mode === "liv" && livStandings.length === 0) {
+    return (
+      <Box p="md">
+        <LivToggle mode={mode} setMode={setMode} />
+        <Text c="forest.2" ta="center" p="md">
+          No teams are in the LIV Standings yet - add them from the Admin page.
+        </Text>
+      </Box>
+    );
+  }
+
   return (
     <Box p="md">
+      <LivToggle mode={mode} setMode={setMode} />
       <Stack gap={0}>
         <Group
           wrap="nowrap"
@@ -103,12 +139,15 @@ export default function OverallStandingsTabPage() {
           </Text>
         </Group>
 
-        {standings.map((s, idx) => {
+        {displayedStandings.map((s, idx) => {
           const stats = careerStats.find((c) => c.memberId === s.member_id);
-          const isExpanded = expanded === s.member_id;
+          const isExpanded = mode === "all" && expanded === s.member_id;
           return (
             <Box key={s.member_id} style={{ borderBottom: "1px solid var(--mantine-color-forest-3)" }}>
-              <UnstyledButton onClick={() => setExpanded(isExpanded ? null : s.member_id)} style={{ width: "100%" }}>
+              <UnstyledButton
+                onClick={() => mode === "all" && setExpanded(isExpanded ? null : s.member_id)}
+                style={{ width: "100%" }}
+              >
                 <Group wrap="nowrap" px="xs" py={10} align="flex-start">
                   <Group gap={6} wrap="nowrap" align="flex-start" style={{ flex: 3, minWidth: 0 }}>
                     {idx < 3 ? (
@@ -219,5 +258,42 @@ export default function OverallStandingsTabPage() {
         })}
       </Stack>
     </Box>
+  );
+}
+
+function LivToggle({
+  mode,
+  setMode,
+}: {
+  mode: "all" | "liv";
+  setMode: (m: "all" | "liv") => void;
+}) {
+  return (
+    <Group
+      gap={0}
+      mb="sm"
+      style={{ border: "1px solid var(--mantine-color-forest-3)", borderRadius: 6, overflow: "hidden", width: "fit-content" }}
+    >
+      <UnstyledButton
+        onClick={() => setMode("all")}
+        px={12}
+        py={5}
+        style={{ background: mode === "all" ? "var(--mantine-color-forest-8)" : "transparent" }}
+      >
+        <Text size="10px" fw={700} c={mode === "all" ? "white" : "forest.5"}>
+          All
+        </Text>
+      </UnstyledButton>
+      <UnstyledButton
+        onClick={() => setMode("liv")}
+        px={12}
+        py={5}
+        style={{ background: mode === "liv" ? "var(--mantine-color-tangerine-6)" : "transparent" }}
+      >
+        <Text size="10px" fw={700} c={mode === "liv" ? "white" : "forest.5"}>
+          LIV
+        </Text>
+      </UnstyledButton>
+    </Group>
   );
 }

@@ -21,7 +21,7 @@ adminRouter.use(requireMember, requireOwner);
 // Creates a tournament for the owner's league and pre-creates its
 // rounds (default 4, matching LIV's 2026 format) in one transaction.
 adminRouter.post("/tournaments", async (req, res) => {
-  const { name, parTotal, totalRounds, espnEventId, startsAt } = req.body;
+  const { name, parTotal, totalRounds, espnEventId, startsAt, tour } = req.body;
   if (!name) return res.status(400).json({ error: "name is required." });
 
   const rounds = Number(totalRounds) > 0 ? Number(totalRounds) : 4;
@@ -30,10 +30,10 @@ adminRouter.post("/tournaments", async (req, res) => {
   try {
     const tournament = await withTransaction(async (client) => {
       const t = await client.query(
-        `insert into tournaments (league_id, name, espn_event_id, par, total_rounds, status, starts_at)
-         values ($1, $2, $3, $4, $5, 'upcoming', $6)
+        `insert into tournaments (league_id, name, espn_event_id, par, total_rounds, status, starts_at, tour)
+         values ($1, $2, $3, $4, $5, 'upcoming', $6, $7)
          returning *`,
-        [req.member!.leagueId, name, espnEventId ?? null, par, rounds, startsAt ?? null]
+        [req.member!.leagueId, name, espnEventId ?? null, par, rounds, startsAt ?? null, tour ?? null]
       );
       const tournamentId = t.rows[0].id;
 
@@ -114,6 +114,24 @@ adminRouter.patch("/tournaments/:id/status", async (req, res) => {
     }
   }
 
+  res.json({ success: true });
+});
+
+// PATCH /admin/tournaments/:id/tour  { tour }
+// Tags a tournament with its tour (e.g. "LIV") - drives the LIV
+// Standings feature. Only affects which teams' results count toward
+// that extra standings; regular season standings are unaffected and
+// still count every tournament regardless of tour.
+adminRouter.patch("/tournaments/:id/tour", async (req, res) => {
+  const { tour } = req.body;
+  const tournament = await query(
+    `select id from tournaments where id = $1 and league_id = $2`,
+    [req.params.id, req.member!.leagueId]
+  );
+  if (tournament.rows.length === 0) {
+    return res.status(404).json({ error: "Tournament not found." });
+  }
+  await query(`update tournaments set tour = $1 where id = $2`, [tour || null, req.params.id]);
   res.json({ success: true });
 });
 
@@ -835,5 +853,68 @@ adminRouter.post("/interview-questions", async (req, res) => {
   } catch (err) {
     console.error("interview-questions create failed:", err);
     res.status(500).json({ error: "Failed to send question." });
+  }
+});
+
+// GET /admin/liv-standings-members
+// Every member of the league, with a flag for whether they're
+// currently opted into the LIV Standings roster - drives the admin
+// checklist UI for managing membership.
+adminRouter.get("/liv-standings-members", async (req, res) => {
+  try {
+    const result = await query(
+      `select m.id, m.team_name,
+              (lsm.id is not null) as is_liv_member
+         from members m
+         left join liv_standings_members lsm
+           on lsm.member_id = m.id and lsm.league_id = m.league_id
+        where m.league_id = $1
+        order by m.team_name asc`,
+      [req.member!.leagueId]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("liv-standings-members query failed:", err);
+    res.status(500).json({ error: "Failed to load members." });
+  }
+});
+
+// POST /admin/liv-standings-members  { memberId }
+adminRouter.post("/liv-standings-members", async (req, res) => {
+  try {
+    const { memberId } = req.body;
+    if (!memberId || typeof memberId !== "string") {
+      return res.status(400).json({ error: "memberId is required." });
+    }
+    const member = await query(`select id from members where id = $1 and league_id = $2`, [
+      memberId,
+      req.member!.leagueId,
+    ]);
+    if (member.rows.length === 0) {
+      return res.status(404).json({ error: "No member with that id in this league." });
+    }
+    await query(
+      `insert into liv_standings_members (league_id, member_id) values ($1, $2)
+       on conflict (league_id, member_id) do nothing`,
+      [req.member!.leagueId, memberId]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    console.error("liv-standings-members add failed:", err);
+    res.status(500).json({ error: "Failed to add member." });
+  }
+});
+
+// DELETE /admin/liv-standings-members/:memberId
+adminRouter.delete("/liv-standings-members/:memberId", async (req, res) => {
+  try {
+    await query(`delete from liv_standings_members where league_id = $1 and member_id = $2`, [
+      req.member!.leagueId,
+      req.params.memberId,
+    ]);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("liv-standings-members remove failed:", err);
+    res.status(500).json({ error: "Failed to remove member." });
   }
 });

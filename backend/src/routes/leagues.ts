@@ -238,6 +238,39 @@ leagueRouter.get("/:id/podium-standings", async (req, res) => {
   }
 });
 
+// GET /leagues/:id/liv-standings
+// A SEPARATE standings table scoped to only tournaments tagged
+// tour='LIV' and only members explicitly opted into the LIV
+// Standings roster (see liv_standings_members / admin endpoints).
+// Regular ("All") standings are entirely separate and still count
+// every tournament regardless of tour - this is purely additive.
+leagueRouter.get("/:id/liv-standings", async (req, res) => {
+  try {
+    const result = await query(
+      `select m.id as member_id, m.team_name, m.display_name,
+              count(tr.id) filter (where tr.placement = 1) as firsts,
+              count(tr.id) filter (where tr.placement = 2) as seconds,
+              count(tr.id) filter (where tr.placement = 3) as thirds,
+              count(tr.id) as tournaments_played,
+              coalesce(sum(tr.total_to_par), 0) as career_total_to_par,
+              coalesce(sum(tr.points), 0) as total_points
+         from liv_standings_members lsm
+         join members m on m.id = lsm.member_id
+         left join tournament_results tr
+           on tr.member_id = m.id
+          and tr.tournament_id in (select id from tournaments where league_id = $1 and tour = 'LIV')
+        where lsm.league_id = $1
+        group by m.id, m.team_name, m.display_name
+        order by total_points desc, firsts desc, seconds desc, thirds desc, career_total_to_par asc`,
+      [req.params.id]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error("liv-standings query failed:", err);
+    res.status(500).json({ error: "Failed to load LIV standings." });
+  }
+});
+
 // GET /leagues/:id/career-stats - persistent, cross-tournament stats
 // per member (average/best Hot Hand Score, favourite player, best
 // single round ever) - computed once at each tournament's

@@ -381,3 +381,25 @@ create table if not exists interview_reactions (
   unique (interview_id, member_id, emoji)
 );
 create index if not exists idx_interview_reactions_interview on interview_reactions(interview_id);
+
+-- ============================================================
+-- LIV Standings - a second, separate standings table scoped to
+-- only tournaments tagged as LIV events, and only including
+-- whichever teams the owner has explicitly opted in. Regular
+-- ("All") standings are completely unaffected - LIV tournament
+-- results still count there too, this is purely an ADDITIONAL view.
+-- ============================================================
+
+-- Which tour a tournament belongs to (LIV, PGA, DP World, etc) - null
+-- for tournaments created before this existed, treated as "not a LIV
+-- event" everywhere that checks this.
+alter table tournaments add column if not exists tour text;
+
+create table if not exists liv_standings_members (
+  id uuid primary key default gen_random_uuid(),
+  league_id uuid not null references leagues(id) on delete cascade,
+  member_id uuid not null references members(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  unique (league_id, member_id)
+);
+create index if not exists idx_liv_standings_members_league on liv_standings_members(league_id);

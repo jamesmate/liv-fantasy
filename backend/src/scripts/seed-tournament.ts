@@ -22,12 +22,18 @@
  * Usage:
  *   cd backend
  *   API_BASE_URL=https://liv-fantasy.onrender.com SESSION_TOKEN=<owner token> \
- *     npx tsx src/scripts/seed-tournament.ts <espnEventId> "<Tournament Name>" [par] [totalRounds]
+ *     npx tsx src/scripts/seed-tournament.ts <espnEventId> "<Tournament Name>" [par] [totalRounds] [tour]
  *
  * Example:
  *   npx tsx src/scripts/seed-tournament.ts 401811955 "Genesis Scottish Open 2026" 70 4
+ *   npx tsx src/scripts/seed-tournament.ts 401811960 "LIV Golf Chicago" 72 3 LIV
  *
  * par and totalRounds are optional - default to 72 and 4 if omitted.
+ * tour is optional too - set it to "LIV" (case-sensitive, matches
+ * what the LIV Standings feature checks for) for a LIV event so it
+ * counts toward the separate LIV standings, in addition to the
+ * regular season standings which every tournament counts toward
+ * regardless of tour.
  *
  * Where to find the ESPN event id: search "<event name> espn leaderboard",
  * open ESPN's own leaderboard page for it, and pull the number out of
@@ -40,11 +46,11 @@
 
 import { getLeaderboard } from "../adapters/espnGolf";
 
-const [, , espnEventIdArg, nameArg, parArg, roundsArg] = process.argv;
+const [, , espnEventIdArg, nameArg, parArg, roundsArg, tourArg] = process.argv;
 
 if (!espnEventIdArg || !nameArg) {
   console.error(
-    'Usage: npx tsx src/scripts/seed-tournament.ts <espnEventId> "<Tournament Name>" [par] [totalRounds]'
+    'Usage: npx tsx src/scripts/seed-tournament.ts <espnEventId> "<Tournament Name>" [par] [totalRounds] [tour]'
   );
   process.exit(1);
 }
@@ -53,6 +59,7 @@ const ESPN_EVENT_ID = espnEventIdArg;
 const TOURNAMENT_NAME = nameArg;
 const PAR = parArg ? Number(parArg) : 72;
 const TOTAL_ROUNDS = roundsArg ? Number(roundsArg) : 4;
+const TOUR = tourArg || null;
 
 const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:3001";
 const SESSION_TOKEN = process.env.SESSION_TOKEN;
@@ -107,6 +114,7 @@ async function main() {
       parTotal: PAR,
       totalRounds: TOTAL_ROUNDS,
       espnEventId: ESPN_EVENT_ID,
+      tour: TOUR,
     }),
   });
   console.log(`Created tournament ${tournament.id}.`);

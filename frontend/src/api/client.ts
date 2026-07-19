@@ -296,6 +296,24 @@ export interface PodiumStanding {
   total_points: number;
 }
 
+export interface LivStanding {
+  member_id: string;
+  team_name: string;
+  display_name: string;
+  firsts: number;
+  seconds: number;
+  thirds: number;
+  tournaments_played: number;
+  career_total_to_par: number;
+  total_points: number;
+}
+
+export interface LivStandingsMember {
+  id: string;
+  team_name: string;
+  is_liv_member: boolean;
+}
+
 export interface NeedsSwapPick {
   pick_id: string;
   tournament_player_id: string;
@@ -573,6 +591,25 @@ export const api = {
 
   getPodiumStandings: (leagueId: string) =>
     request<PodiumStanding[]>(`/leagues/${leagueId}/podium-standings`),
+
+  getLivStandings: (leagueId: string) => request<LivStanding[]>(`/leagues/${leagueId}/liv-standings`),
+
+  getLivStandingsMembers: () => request<LivStandingsMember[]>(`/admin/liv-standings-members`),
+
+  addLivStandingsMember: (memberId: string) =>
+    request<{ success: true }>(`/admin/liv-standings-members`, {
+      method: "POST",
+      body: JSON.stringify({ memberId }),
+    }),
+
+  removeLivStandingsMember: (memberId: string) =>
+    request<{ success: true }>(`/admin/liv-standings-members/${memberId}`, { method: "DELETE" }),
+
+  setTournamentTour: (tournamentId: string, tour: string | null) =>
+    request<{ success: true }>(`/admin/tournaments/${tournamentId}/tour`, {
+      method: "PATCH",
+      body: JSON.stringify({ tour }),
+    }),
 
   getCareerStats: (leagueId: string) =>
     request<MemberCareerStats[]>(`/leagues/${leagueId}/career-stats`),
