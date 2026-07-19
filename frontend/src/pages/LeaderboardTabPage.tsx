@@ -158,11 +158,9 @@ export default function LeaderboardTabPage() {
           <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.8 }}>
             Tot
           </Text>
-          {!showBonus && (
-            <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.9 }}>
-              Pts
-            </Text>
-          )}
+          <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 1 }}>
+            {showBonus ? "+PTS" : "Pts"}
+          </Text>
         </Group>
 
         {(() => {
@@ -219,6 +217,7 @@ function TeamRow({
   showBonus: boolean;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
+  const bonusTotal = team.rounds.reduce((sum, r) => sum + (r.bonusPick?.points ?? 0), 0);
 
   return (
     <Box style={{ borderBottom: "1px solid var(--mantine-color-forest-3)" }}>
@@ -276,29 +275,28 @@ function TeamRow({
           })}
           <Group gap={4} wrap="nowrap" justify="center" style={{ flex: 0.8 }}>
             <Text size="sm" fw={800} c="forest.9">
-              {showBonus
-                ? team.rounds.reduce((sum, r) => sum + (r.bonusPick?.points ?? 0), 0)
-                : formatToPar(team.overallTotal)}
+              {showBonus ? bonusTotal : formatToPar(team.overallTotal)}
             </Text>
-            {showBonus &&
-              (isExpanded ? (
-                <IconChevronUp size={14} color="var(--mantine-color-forest-5)" />
-              ) : (
-                <IconChevronDown size={14} color="var(--mantine-color-forest-5)" />
-              ))}
           </Group>
-          {!showBonus && (
-            <Group gap={4} wrap="nowrap" justify="center" style={{ flex: 0.9 }}>
+          <Group gap={4} wrap="nowrap" justify="center" style={{ flex: 1 }}>
+            {showBonus ? (
+              <Text size="sm" fw={800} c="mint.7">
+                <Text span size="10px" c="forest.4" fw={600}>
+                  (+{team.leaguePoints}){" "}
+                </Text>
+                {bonusTotal + team.leaguePoints}
+              </Text>
+            ) : (
               <Text size="sm" fw={800} c="mint.7">
                 {team.leaguePoints}
               </Text>
-              {isExpanded ? (
-                <IconChevronUp size={14} color="var(--mantine-color-forest-5)" />
-              ) : (
-                <IconChevronDown size={14} color="var(--mantine-color-forest-5)" />
-              )}
-            </Group>
-          )}
+            )}
+            {isExpanded ? (
+              <IconChevronUp size={14} color="var(--mantine-color-forest-5)" />
+            ) : (
+              <IconChevronDown size={14} color="var(--mantine-color-forest-5)" />
+            )}
+          </Group>
         </Group>
       </UnstyledButton>
 
