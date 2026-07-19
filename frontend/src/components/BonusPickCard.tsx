@@ -71,7 +71,10 @@ export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
     <>
       <Box px="md" pt={6} pb={2} style={{ flexShrink: 0 }}>
         <Text size="9px" fw={700} c="tangerine.7" tt="uppercase" mb={2}>
-          Bonus
+          <Text span size="13px" fw={800}>
+            Bonus
+          </Text>
+          : Earn Extra League Points!
         </Text>
         <Card
           p={8}
@@ -107,7 +110,7 @@ export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
                 disabled={isLocked}
                 onClick={openPicker}
               >
-                {data.pick ? "Change" : "Pick"}
+                Pick
               </Button>
             </Group>
           </Group>
