@@ -215,14 +215,19 @@ leagueRouter.get("/:id/current-tournament", async (req, res) => {
 // GET /leagues/:id/podium-standings - all-time ranking by count of
 // 1st/2nd/3rd place finishes across every completed tournament, NOT
 // by total score - used by the Overall Standings tab. Sort order:
-// most 1sts, then most 2nds, then most 3rds, then lowest career score
-// as a final tiebreak.
+// most total points earned, then most 1sts/2nds/3rds as tiebreakers,
+// then lowest career score as a final tiebreak. Points became the
+// primary sort here after the points system was introduced - sorting
+// by medal counts first (the original ordering) meant a team with a
+// lot of points but no exact podium finishes could rank BELOW a team
+// with a single 3rd place and zero points, which isn't right now that
+// points are the more meaningful season-long metric.
 leagueRouter.get("/:id/podium-standings", async (req, res) => {
   try {
     const result = await query(
       `select * from podium_standings
         where league_id = $1
-        order by firsts desc, seconds desc, thirds desc, career_total_to_par asc`,
+        order by total_points desc, firsts desc, seconds desc, thirds desc, career_total_to_par asc`,
       [req.params.id]
     );
     res.json(result.rows);
