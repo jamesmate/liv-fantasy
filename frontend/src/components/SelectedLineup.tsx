@@ -37,6 +37,7 @@ interface SelectedLineupProps {
   showScores?: boolean;
   teamName?: string | null;
   tournamentName?: string | null;
+  teamColor?: string | null;
   roundNumber?: number;
   isLocked?: boolean;
   /** Name of the picked player with the best score this round, if any - they render in the golf-club pose. */
@@ -69,6 +70,7 @@ export function SelectedLineup({
   showScores = false,
   teamName,
   tournamentName,
+  teamColor,
   roundNumber,
   isLocked,
   topScorerName,
@@ -139,12 +141,25 @@ export function SelectedLineup({
           return (
             <Stack key={slot?.id ?? `empty-${slotIndex}`} align="center" gap={2} w={60}>
               {slot ? (
-                <AnimatedGolferSprite
-                  playerName={slot.name}
-                  size={52}
-                  lineupIndex={slotIndex}
-                  isTopScorer={(!!topScorerName && slot.name === topScorerName) || !!slot.hasDoublePlay}
-                />
+                <div
+                  style={{
+                    width: 58,
+                    height: 58,
+                    borderRadius: "50%",
+                    background: teamColor ? `${teamColor}33` : "transparent",
+                    border: teamColor ? `2px solid ${teamColor}` : "none",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <AnimatedGolferSprite
+                    playerName={slot.name}
+                    size={52}
+                    lineupIndex={slotIndex}
+                    isTopScorer={(!!topScorerName && slot.name === topScorerName) || !!slot.hasDoublePlay}
+                  />
+                </div>
               ) : (
                 <div
                   style={{

@@ -123,6 +123,11 @@ export default function PickTabPage() {
   const [swapping, setSwapping] = useState(false);
 
   const [doublePlayStatus, setDoublePlayStatus] = useState<DoublePlayStatus | null>(null);
+  const [teamColor, setTeamColor] = useState<string | null>(null);
+
+  useEffect(() => {
+    api.getMyTeam().then((team) => setTeamColor(team?.team_color ?? null)).catch(() => {});
+  }, []);
 
   const activeRound = tournament?.rounds.find((r) => r.round_number === activeRoundNumber);
   const roundId = activeRound?.id ?? null;
@@ -366,6 +371,7 @@ export default function PickTabPage() {
           showScores={showScores}
           teamName={teamName}
           tournamentName={tournament?.name}
+          teamColor={teamColor}
           roundNumber={activeRoundNumber}
           isLocked={isLocked}
           topScorerName={topScorerName}

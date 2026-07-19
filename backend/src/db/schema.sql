@@ -403,3 +403,9 @@ create table if not exists liv_standings_members (
   unique (league_id, member_id)
 );
 create index if not exists idx_liv_standings_members_league on liv_standings_members(league_id);
+
+-- Member-chosen accent color (hex string, e.g. "#2d5a3d") - shown on
+-- their picked players' sprites in the lineup zone once they've made
+-- picks. Null until a member sets one, in which case the frontend
+-- falls back to a neutral default.
+alter table members add column if not exists team_color text;

@@ -589,6 +589,14 @@ export const api = {
 
   getRecap: (leagueId: string) => request<TournamentRecap>(`/leagues/${leagueId}/recap`),
 
+  getMyTeam: () => request<{ team_name: string; team_color: string | null } | null>(`/leagues/me/team`),
+
+  updateMyTeam: (updates: { teamName?: string; teamColor?: string | null }) =>
+    request<{ success: true }>(`/leagues/me/team`, {
+      method: "PATCH",
+      body: JSON.stringify(updates),
+    }),
+
   getPodiumStandings: (leagueId: string) =>
     request<PodiumStanding[]>(`/leagues/${leagueId}/podium-standings`),
 

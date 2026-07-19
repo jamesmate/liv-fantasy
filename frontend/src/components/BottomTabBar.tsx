@@ -1,6 +1,6 @@
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { UnstyledButton, Group, Text, Stack } from "@mantine/core";
-import { IconTarget, IconTable, IconTrophy, IconCalendarEvent } from "@tabler/icons-react";
+import { IconTarget, IconTable, IconTrophy, IconCalendarEvent, IconPalette } from "@tabler/icons-react";
 
 interface TabDef {
   key: string;
@@ -38,6 +38,13 @@ const TABS: TabDef[] = [
     icon: IconTrophy,
     path: (leagueId) => `/league/${leagueId}/overall-standings`,
     match: (pathname) => pathname.includes("/overall-standings"),
+  },
+  {
+    key: "team",
+    label: "Team",
+    icon: IconPalette,
+    path: (leagueId) => `/league/${leagueId}/team`,
+    match: (pathname) => pathname.includes("/team"),
   },
 ];
 

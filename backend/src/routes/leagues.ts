@@ -822,3 +822,54 @@ leagueRouter.get("/:id/standings", async (req, res) => {
   );
   res.json(result.rows);
 });
+
+// GET /leagues/me/team - the current member's own team name/color,
+// for the Team settings tab.
+leagueRouter.get("/me/team", requireMember, async (req, res) => {
+  try {
+    const result = await query<{ team_name: string; team_color: string | null }>(
+      `select team_name, team_color from members where id = $1`,
+      [req.member!.id]
+    );
+    res.json(result.rows[0] ?? null);
+  } catch (err) {
+    console.error("me/team query failed:", err);
+    res.status(500).json({ error: "Failed to load team info." });
+  }
+});
+
+// PATCH /leagues/me/team  { teamName?, teamColor? }
+// Self-service - a member can only ever update their OWN team_name/
+// team_color, never anyone else's (no memberId param at all, always
+// req.member!.id).
+leagueRouter.patch("/me/team", requireMember, async (req, res) => {
+  try {
+    const { teamName, teamColor } = req.body;
+    if (teamName !== undefined && (typeof teamName !== "string" || !teamName.trim())) {
+      return res.status(400).json({ error: "teamName must be a non-empty string." });
+    }
+    if (teamColor !== undefined && teamColor !== null && !/^#[0-9a-fA-F]{6}$/.test(teamColor)) {
+      return res.status(400).json({ error: "teamColor must be a hex color like #2d5a3d." });
+    }
+
+    const updates: string[] = [];
+    const values: unknown[] = [];
+    if (teamName !== undefined) {
+      values.push(teamName.trim());
+      updates.push(`team_name = $${values.length}`);
+    }
+    if (teamColor !== undefined) {
+      values.push(teamColor);
+      updates.push(`team_color = $${values.length}`);
+    }
+    if (updates.length === 0) {
+      return res.status(400).json({ error: "Nothing to update." });
+    }
+    values.push(req.member!.id);
+    await query(`update members set ${updates.join(", ")} where id = $${values.length}`, values);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("me/team update failed:", err);
+    res.status(500).json({ error: "Failed to update team." });
+  }
+});
