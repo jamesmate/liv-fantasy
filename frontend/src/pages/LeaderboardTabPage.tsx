@@ -108,6 +108,12 @@ export default function LeaderboardTabPage() {
   }
 
   const totalRounds = data.tournament.totalRounds;
+  // The one round that's currently in progress - has some real score
+  // data but isn't fully scored for at least one team yet. Only ever
+  // expected to match a single round at a time, since rounds proceed
+  // sequentially.
+  const liveRoundNumber =
+    data.teams.flatMap((t) => t.rounds).find((r) => r.total !== null && !r.fullyScored)?.roundNumber ?? null;
 
   return (
     <Box p="md">
@@ -151,9 +157,18 @@ export default function LeaderboardTabPage() {
             Team
           </Text>
           {Array.from({ length: totalRounds }).map((_, i) => (
-            <Text key={i} size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.7 }}>
-              R{i + 1}
-            </Text>
+            <Box
+              key={i}
+              style={{
+                flex: 0.7,
+                background: i + 1 === liveRoundNumber ? "white" : "transparent",
+                borderRadius: 6,
+              }}
+            >
+              <Text size="xs" fw={700} c="forest.8" ta="center">
+                R{i + 1}
+              </Text>
+            </Box>
           ))}
           <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.8 }}>
             Tot
@@ -190,6 +205,7 @@ export default function LeaderboardTabPage() {
                 isExpanded={expanded === team.memberId}
                 onToggle={() => setExpanded(expanded === team.memberId ? null : team.memberId)}
                 showBonus={showBonus}
+                liveRoundNumber={liveRoundNumber}
               />
             );
           });
@@ -208,6 +224,7 @@ function TeamRow({
   isExpanded,
   onToggle,
   showBonus,
+  liveRoundNumber,
 }: {
   team: LeaderboardTeam;
   position: number;
@@ -215,6 +232,7 @@ function TeamRow({
   isExpanded: boolean;
   onToggle: () => void;
   showBonus: boolean;
+  liveRoundNumber: number | null;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
   const bonusTotal = team.rounds.reduce((sum, r) => sum + (r.bonusPick?.points ?? 0), 0);
@@ -240,37 +258,52 @@ function TeamRow({
             const bonusPoints = r.bonusPick?.points ?? null;
             const value = showBonus ? bonusPoints : r.total;
             const isDefaulted = !showBonus && r.isDefaulted;
+            const isLiveColumn = r.roundNumber === liveRoundNumber;
             return (
-              <Text
+              <Box
                 key={r.roundNumber}
-                size="sm"
-                ta="center"
-                fw={600}
-                c={
-                  isDefaulted
-                    ? "#9333ea"
-                    : value === null
-                    ? "forest.3"
-                    : showBonus
-                    ? value > 0
-                      ? "tangerine.7"
-                      : "forest.5"
-                    : value < 0
-                    ? "mint.7"
-                    : value > 0
-                    ? "coral.6"
-                    : "forest.6"
-                }
-                style={{ flex: 0.7 }}
+                style={{
+                  flex: 0.7,
+                  background: isLiveColumn ? "white" : "transparent",
+                  borderRadius: 6,
+                  padding: "2px 0",
+                }}
               >
-                {value === null ? "-" : showBonus ? value : formatToPar(value)}
-                {isDefaulted && (
-                  <Text span size="9px" fw={700}>
-                    {" "}
-                    (NP)
-                  </Text>
-                )}
-              </Text>
+                <Text
+                  size="sm"
+                  ta="center"
+                  fw={600}
+                  c={
+                    isDefaulted
+                      ? "#9333ea"
+                      : value === null
+                      ? "forest.3"
+                      : showBonus
+                      ? value > 0
+                        ? "tangerine.7"
+                        : "forest.5"
+                      : value < 0
+                      ? "mint.7"
+                      : value > 0
+                      ? "coral.6"
+                      : "forest.6"
+                  }
+                >
+                  {value === null ? "-" : showBonus ? value : formatToPar(value)}
+                  {isDefaulted && (
+                    <Text span size="9px" fw={700}>
+                      {" "}
+                      (NP)
+                    </Text>
+                  )}
+                  {isLiveColumn && !isDefaulted && r.fullyScored && (
+                    <Text span size="9px" fw={700} c="forest.3">
+                      {" "}
+                      F
+                    </Text>
+                  )}
+                </Text>
+              </Box>
             );
           })}
           <Group gap={4} wrap="nowrap" justify="center" style={{ flex: 0.8 }}>
@@ -348,11 +381,6 @@ function TeamRow({
           </Box>
           {team.rounds.map((round) => (
             <Box key={round.roundNumber} mb={6}>
-              {round.total !== null && !round.fullyScored && (
-                <Text size="8px" fw={700} c="forest.4" tt="uppercase" mb={1}>
-                  Live
-                </Text>
-              )}
               <Text size="xs" fw={700} c={round.isDefaulted ? "#9333ea" : "forest.2"} mb={4}>
                 Round {round.roundNumber}
                 {round.total !== null ? ` | ${formatToPar(round.total)}` : ""}
