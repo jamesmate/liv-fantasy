@@ -212,6 +212,7 @@ export interface LeaderboardTeam {
   displayName: string;
   rounds: LeaderboardRound[];
   overallTotal: number;
+  leaguePoints: number;
   timingScore: number | null;
   timingScoreQualifyingPicks: number;
   totalPicksMade: number;

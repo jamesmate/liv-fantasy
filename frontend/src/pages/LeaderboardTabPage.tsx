@@ -158,6 +158,11 @@ export default function LeaderboardTabPage() {
           <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.8 }}>
             Tot
           </Text>
+          {!showBonus && (
+            <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.9 }}>
+              Pts
+            </Text>
+          )}
         </Group>
 
         {(() => {
@@ -275,12 +280,25 @@ function TeamRow({
                 ? team.rounds.reduce((sum, r) => sum + (r.bonusPick?.points ?? 0), 0)
                 : formatToPar(team.overallTotal)}
             </Text>
-            {isExpanded ? (
-              <IconChevronUp size={14} color="var(--mantine-color-forest-5)" />
-            ) : (
-              <IconChevronDown size={14} color="var(--mantine-color-forest-5)" />
-            )}
+            {showBonus &&
+              (isExpanded ? (
+                <IconChevronUp size={14} color="var(--mantine-color-forest-5)" />
+              ) : (
+                <IconChevronDown size={14} color="var(--mantine-color-forest-5)" />
+              ))}
           </Group>
+          {!showBonus && (
+            <Group gap={4} wrap="nowrap" justify="center" style={{ flex: 0.9 }}>
+              <Text size="sm" fw={800} c="mint.7">
+                {team.leaguePoints}
+              </Text>
+              {isExpanded ? (
+                <IconChevronUp size={14} color="var(--mantine-color-forest-5)" />
+              ) : (
+                <IconChevronDown size={14} color="var(--mantine-color-forest-5)" />
+              )}
+            </Group>
+          )}
         </Group>
       </UnstyledButton>
 

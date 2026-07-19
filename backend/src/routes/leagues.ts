@@ -6,6 +6,7 @@ import { hashPasscode, verifyPasscode } from "../utils/passcode";
 import { maybeSync } from "../services/scoreSync";
 import { generateHeadlines } from "../services/headlines";
 import { generateRecap } from "../services/recap";
+import { calculatePoints } from "../services/tournamentResults";
 
 export const leagueRouter = Router();
 
@@ -744,7 +745,27 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
   // something like bonus points.
   result.sort((a, b) => a.overallTotal - b.overallTotal);
 
-  res.json({ tournament: { id: tournamentId, name: tournamentName, totalRounds }, teams: result });
+  // Live "League Points" - a PROJECTION of what each team would earn
+  // right now if the tournament ended this instant, using the exact
+  // same field-size-scaled formula and tie handling as the real
+  // finalization step (see calculatePoints in tournamentResults.ts) -
+  // not yet real/final until the tournament actually finalizes, but
+  // gives a live sense of the season-long stakes during an ongoing
+  // event. Ties share the same placement (and therefore identical
+  // points), matching how finalization itself handles ties.
+  let previousScore: number | null = null;
+  let previousPlacement = 0;
+  let rowsSeen = 0;
+  const resultWithPoints = result.map((team) => {
+    rowsSeen++;
+    const placement =
+      previousScore !== null && team.overallTotal === previousScore ? previousPlacement : rowsSeen;
+    previousScore = team.overallTotal;
+    previousPlacement = placement;
+    return { ...team, leaguePoints: calculatePoints(placement, result.length) };
+  });
+
+  res.json({ tournament: { id: tournamentId, name: tournamentName, totalRounds }, teams: resultWithPoints });
   } catch (err) {
     // This is the single most-loaded endpoint in the app - an
     // unguarded throw here (e.g. a column a migration hasn't been run

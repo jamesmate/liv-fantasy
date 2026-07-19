@@ -31,7 +31,7 @@ const PARTICIPATION_FLOOR = 20; // nobody who finished gets a literal zero
  * works the same whether the league has 4 teams or 40, with no table
  * to maintain as it grows.
  */
-function calculatePoints(placement: number, fieldSize: number): number {
+export function calculatePoints(placement: number, fieldSize: number): number {
   if (fieldSize <= 1) return WIN_POINTS;
   const raw = WIN_POINTS * Math.pow((fieldSize - placement) / (fieldSize - 1), POINTS_CURVE_EXPONENT);
   return Math.max(PARTICIPATION_FLOOR, Math.round(raw));
