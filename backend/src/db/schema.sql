@@ -409,3 +409,11 @@ create index if not exists idx_liv_standings_members_league on liv_standings_mem
 -- picks. Null until a member sets one, in which case the frontend
 -- falls back to a neutral default.
 alter table members add column if not exists team_color text;
+
+-- When true, a round locking with zero picks made auto-assigns 4
+-- random eligible players instead of leaving the round to default to
+-- the field-average+5 penalty (see team_round_totals). Off by
+-- default - the penalty is the safe/current baseline behavior;
+-- opting into random assignment is a deliberate per-member choice
+-- made in the Team settings tab.
+alter table members add column if not exists auto_assign_on_no_pick boolean not null default false;

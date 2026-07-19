@@ -1,18 +1,21 @@
 import { useEffect, useState } from "react";
-import { Box, Text, Stack, TextInput, ColorInput, Button, Alert } from "@mantine/core";
+import { Box, Text, Stack, TextInput, ColorInput, Button, Alert, Switch, Card } from "@mantine/core";
 import { IconCheck, IconAlertTriangle } from "@tabler/icons-react";
 import { api } from "../api/client";
 
 const DEFAULT_COLOR = "#2d5a3d";
 
 /**
- * Self-service team settings - name and an accent color, which shows
- * up on the member's own picked players' sprites in the lineup zone
- * once they've made picks (see AnimatedGolferSprite/SelectedLineup).
+ * Self-service team settings - name, an accent color (shown on picked
+ * players' sprites), and the auto-assign-on-no-pick toggle: on means
+ * a round locking with zero picks made gets 4 random eligible players
+ * assigned automatically instead of defaulting to the field-average+5
+ * no-pick penalty.
  */
 export default function TeamTabPage() {
   const [teamName, setTeamName] = useState("");
   const [teamColor, setTeamColor] = useState(DEFAULT_COLOR);
+  const [autoAssign, setAutoAssign] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -25,6 +28,7 @@ export default function TeamTabPage() {
         if (team) {
           setTeamName(team.team_name);
           setTeamColor(team.team_color ?? DEFAULT_COLOR);
+          setAutoAssign(team.auto_assign_on_no_pick);
         }
       })
       .catch((err) => setError(err.message))
@@ -40,7 +44,7 @@ export default function TeamTabPage() {
     setError(null);
     setSaved(false);
     try {
-      await api.updateMyTeam({ teamName: teamName.trim(), teamColor });
+      await api.updateMyTeam({ teamName: teamName.trim(), teamColor, autoAssignOnNoPick: autoAssign });
       setSaved(true);
     } catch (err: any) {
       setError(err.message);
@@ -82,6 +86,19 @@ export default function TeamTabPage() {
             "#27ae60",
           ]}
         />
+        <Card bg="forest.7" p="md">
+          <Switch
+            label="Auto-assign if I forget to pick"
+            description={
+              autoAssign
+                ? "On - a locked round with no picks gets 4 random eligible players instead of the penalty."
+                : "Off - a locked round with no picks scores the field average + 5 shots."
+            }
+            checked={autoAssign}
+            onChange={(e) => setAutoAssign(e.currentTarget.checked)}
+            color="tangerine"
+          />
+        </Card>
         {error && (
           <Alert color="coral" icon={<IconAlertTriangle size={16} />}>
             {error}

@@ -589,9 +589,12 @@ export const api = {
 
   getRecap: (leagueId: string) => request<TournamentRecap>(`/leagues/${leagueId}/recap`),
 
-  getMyTeam: () => request<{ team_name: string; team_color: string | null } | null>(`/leagues/me/team`),
+  getMyTeam: () =>
+    request<{ team_name: string; team_color: string | null; auto_assign_on_no_pick: boolean } | null>(
+      `/leagues/me/team`
+    ),
 
-  updateMyTeam: (updates: { teamName?: string; teamColor?: string | null }) =>
+  updateMyTeam: (updates: { teamName?: string; teamColor?: string | null; autoAssignOnNoPick?: boolean }) =>
     request<{ success: true }>(`/leagues/me/team`, {
       method: "PATCH",
       body: JSON.stringify(updates),

@@ -827,8 +827,8 @@ leagueRouter.get("/:id/standings", async (req, res) => {
 // for the Team settings tab.
 leagueRouter.get("/me/team", requireMember, async (req, res) => {
   try {
-    const result = await query<{ team_name: string; team_color: string | null }>(
-      `select team_name, team_color from members where id = $1`,
+    const result = await query<{ team_name: string; team_color: string | null; auto_assign_on_no_pick: boolean }>(
+      `select team_name, team_color, auto_assign_on_no_pick from members where id = $1`,
       [req.member!.id]
     );
     res.json(result.rows[0] ?? null);
@@ -844,12 +844,15 @@ leagueRouter.get("/me/team", requireMember, async (req, res) => {
 // req.member!.id).
 leagueRouter.patch("/me/team", requireMember, async (req, res) => {
   try {
-    const { teamName, teamColor } = req.body;
+    const { teamName, teamColor, autoAssignOnNoPick } = req.body;
     if (teamName !== undefined && (typeof teamName !== "string" || !teamName.trim())) {
       return res.status(400).json({ error: "teamName must be a non-empty string." });
     }
     if (teamColor !== undefined && teamColor !== null && !/^#[0-9a-fA-F]{6}$/.test(teamColor)) {
       return res.status(400).json({ error: "teamColor must be a hex color like #2d5a3d." });
+    }
+    if (autoAssignOnNoPick !== undefined && typeof autoAssignOnNoPick !== "boolean") {
+      return res.status(400).json({ error: "autoAssignOnNoPick must be a boolean." });
     }
 
     const updates: string[] = [];
@@ -861,6 +864,10 @@ leagueRouter.patch("/me/team", requireMember, async (req, res) => {
     if (teamColor !== undefined) {
       values.push(teamColor);
       updates.push(`team_color = $${values.length}`);
+    }
+    if (autoAssignOnNoPick !== undefined) {
+      values.push(autoAssignOnNoPick);
+      updates.push(`auto_assign_on_no_pick = $${values.length}`);
     }
     if (updates.length === 0) {
       return res.status(400).json({ error: "Nothing to update." });

@@ -6,6 +6,7 @@ import { adminRouter } from "./routes/admin";
 import { query } from "./db/client";
 import { syncTournamentScores } from "./services/scoreSync";
 import { syncBonusPicksForRound } from "./services/bonusPickSync";
+import { autoAssignMissingPicks } from "./services/picks";
 
 // Safety net: Express 4 doesn't automatically catch errors thrown
 // inside async route handlers, and Node's default behavior since v15
@@ -90,6 +91,11 @@ async function runSyncForLiveTournaments() {
             await syncBonusPicksForRound(r.id);
           } catch (err) {
             console.error(`[syncLoop] bonus pick sync failed for round ${r.id}, continuing:`, err);
+          }
+          try {
+            await autoAssignMissingPicks(r.id);
+          } catch (err) {
+            console.error(`[syncLoop] auto-assign failed for round ${r.id}, continuing:`, err);
           }
         }
       } catch (err) {

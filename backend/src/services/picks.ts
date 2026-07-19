@@ -34,6 +34,11 @@ interface SubmitPicksInput {
   roundId: string;
   tournamentPlayerIds: string[]; // expects exactly 4
   doublePlayTournamentPlayerId?: string | null; // one of the 4, or null/omitted
+  // Only ever set true by the system's own auto-assign-on-lock job
+  // (see autoAssignMissingPicks below) - a member-initiated request
+  // must NEVER be able to set this, since it's the one thing standing
+  // between "the round is locked" and "picks can still be changed".
+  bypassLockCheck?: boolean;
 }
 
 export async function submitPicks({
@@ -41,6 +46,7 @@ export async function submitPicks({
   roundId,
   tournamentPlayerIds,
   doublePlayTournamentPlayerId,
+  bypassLockCheck = false,
 }: SubmitPicksInput) {
   if (tournamentPlayerIds.length !== 4) {
     throw new PickValidationError("Exactly 4 players must be picked per round.");
@@ -58,7 +64,7 @@ export async function submitPicks({
   );
   const round = roundRes.rows[0];
   if (!round) throw new PickValidationError("Round not found.");
-  if (round.locks_at && new Date(round.locks_at) < new Date()) {
+  if (!bypassLockCheck && round.locks_at && new Date(round.locks_at) < new Date()) {
     throw new PickValidationError("Picks are locked for this round.");
   }
 
@@ -218,7 +224,7 @@ export async function getDoublePlayStatus(memberId: string, tournamentId: string
  * before they recorded a score) is excluded from this set, since they
  * never actually played for the member.
  */
-async function getPreviouslyUsedPlayers({
+export async function getPreviouslyUsedPlayers({
   memberId,
   tournamentId,
   excludingRoundId,
@@ -246,4 +252,69 @@ async function getPreviouslyUsedPlayers({
     // "used" history.
   }
   return used;
+}
+
+/**
+ * For every member who has opted into auto-assign (see
+ * members.auto_assign_on_no_pick / the Team settings tab) and has
+ * made ZERO picks for a round that has now locked, randomly assigns
+ * them 4 eligible players instead of leaving the round to fall back
+ * to the field-average+5 no-pick penalty. Does nothing for a round
+ * that hasn't locked yet, or for members who already have picks
+ * (even a partial/invalid set - only a genuine zero-pick round
+ * triggers this).
+ *
+ * Called from the main sync loop (see index.ts) alongside score and
+ * bonus pick syncing, so it runs on the same ~3 minute cadence rather
+ * than needing its own scheduling.
+ */
+export async function autoAssignMissingPicks(roundId: string): Promise<void> {
+  const roundRes = await query<{ tournament_id: string; locks_at: string | null; league_id: string }>(
+    `select r.tournament_id, r.locks_at, t.league_id
+       from rounds r
+       join tournaments t on t.id = r.tournament_id
+      where r.id = $1`,
+    [roundId]
+  );
+  const round = roundRes.rows[0];
+  if (!round || !round.locks_at || new Date(round.locks_at) >= new Date()) return;
+
+  const candidates = await query<{ id: string }>(
+    `select m.id
+       from members m
+      where m.league_id = $1
+        and m.auto_assign_on_no_pick = true
+        and not exists (select 1 from picks p where p.round_id = $2 and p.member_id = m.id)`,
+    [round.league_id, roundId]
+  );
+  if (candidates.rows.length === 0) return;
+
+  const playersRes = await query<{ id: string }>(
+    `select id from tournament_players where tournament_id = $1 and is_active = true`,
+    [round.tournament_id]
+  );
+  const allPlayerIds = playersRes.rows.map((p) => p.id);
+
+  for (const member of candidates.rows) {
+    try {
+      const used = await getPreviouslyUsedPlayers({
+        memberId: member.id,
+        tournamentId: round.tournament_id,
+        excludingRoundId: roundId,
+      });
+      const eligible = allPlayerIds.filter((id) => !used.has(id));
+      if (eligible.length < 4) {
+        console.error(
+          `[autoAssign] not enough eligible players for member ${member.id} round ${roundId} (${eligible.length} available)`
+        );
+        continue;
+      }
+      const shuffled = [...eligible].sort(() => Math.random() - 0.5);
+      const picked = shuffled.slice(0, 4);
+      await submitPicks({ memberId: member.id, roundId, tournamentPlayerIds: picked, bypassLockCheck: true });
+      console.log(`[autoAssign] assigned random picks for member ${member.id} round ${roundId}: ${picked.join(", ")}`);
+    } catch (err) {
+      console.error(`[autoAssign] failed for member ${member.id} round ${roundId}:`, err);
+    }
+  }
 }
