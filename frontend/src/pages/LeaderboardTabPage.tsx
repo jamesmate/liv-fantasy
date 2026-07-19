@@ -350,6 +350,11 @@ function TeamRow({
           </Box>
           {team.rounds.map((round) => (
             <Box key={round.roundNumber} mb={6}>
+              {round.total !== null && !round.fullyScored && (
+                <Text size="8px" fw={700} c="forest.4" tt="uppercase" mb={1}>
+                  Live
+                </Text>
+              )}
               <Text size="xs" fw={700} c={round.isDefaulted ? "#9333ea" : "forest.2"} mb={4}>
                 Round {round.roundNumber}
                 {round.total !== null ? ` | ${formatToPar(round.total)}` : ""}
