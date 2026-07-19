@@ -259,8 +259,13 @@ function TeamRow({
                 }
                 style={{ flex: 0.7 }}
               >
-                {isDefaulted && "* "}
                 {value === null ? "-" : showBonus ? value : formatToPar(value)}
+                {isDefaulted && (
+                  <Text span size="9px" fw={700}>
+                    {" "}
+                    (NP)
+                  </Text>
+                )}
               </Text>
             );
           })}
@@ -327,9 +332,10 @@ function TeamRow({
           </Box>
           {team.rounds.map((round) => (
             <Box key={round.roundNumber} mb={6}>
-              <Text size="xs" fw={700} c="forest.2" mb={4}>
+              <Text size="xs" fw={700} c={round.isDefaulted ? "#9333ea" : "forest.2"} mb={4}>
                 Round {round.roundNumber}
                 {round.total !== null ? ` | ${formatToPar(round.total)}` : ""}
+                {round.isDefaulted && " (NP)"}
               </Text>
               {round.picks.length === 0 ? (
                 <Text size="xs" c="forest.3" pl="xs">
