@@ -1,9 +1,22 @@
 import { useEffect, useState } from "react";
-import { Box, Text, Stack, TextInput, ColorInput, Button, Alert, Switch, Card } from "@mantine/core";
+import { Box, Text, Stack, TextInput, Button, Alert, Switch, Card, Group, UnstyledButton } from "@mantine/core";
 import { IconCheck, IconAlertTriangle } from "@tabler/icons-react";
 import { api } from "../api/client";
 
 const DEFAULT_COLOR = "#2d5a3d";
+
+const SWATCHES = [
+  "#2d5a3d",
+  "#c0392b",
+  "#2980b9",
+  "#8e44ad",
+  "#f39c12",
+  "#16a085",
+  "#d35400",
+  "#2c3e50",
+  "#e91e8c",
+  "#27ae60",
+];
 
 /**
  * Self-service team settings - name, an accent color (shown on picked
@@ -67,25 +80,57 @@ export default function TeamTabPage() {
           onChange={(e) => setTeamName(e.currentTarget.value)}
           placeholder="Your team name"
         />
-        <ColorInput
-          label="Team Colour"
-          description="Shows on your picked players once you've made your picks"
-          value={teamColor}
-          onChange={setTeamColor}
-          format="hex"
-          swatches={[
-            "#2d5a3d",
-            "#c0392b",
-            "#2980b9",
-            "#8e44ad",
-            "#f39c12",
-            "#16a085",
-            "#d35400",
-            "#2c3e50",
-            "#e91e8c",
-            "#27ae60",
-          ]}
-        />
+        <Box>
+          <Text size="sm" fw={500} mb={4}>
+            Team Colour
+          </Text>
+          <Text size="xs" c="dimmed" mb={8}>
+            Shows on your picked players once you've made your picks
+          </Text>
+          <Group gap={8} mb={10}>
+            {SWATCHES.map((sw) => (
+              <UnstyledButton
+                key={sw}
+                onClick={() => setTeamColor(sw)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: "50%",
+                  background: sw,
+                  border:
+                    teamColor.toLowerCase() === sw.toLowerCase()
+                      ? "3px solid var(--mantine-color-forest-9)"
+                      : "1px solid var(--mantine-color-forest-3)",
+                }}
+              />
+            ))}
+          </Group>
+          {/* Native browser color picker rather than Mantine's
+              ColorInput - Mantine's custom drag-based hue/saturation
+              sliders have known touch-event issues on iOS Safari.
+              A native <input type="color"> hands off entirely to the
+              OS's own picker, so there's no custom touch handling to
+              break. */}
+          <Group gap={10} align="center">
+            <input
+              type="color"
+              value={teamColor}
+              onChange={(e) => setTeamColor(e.target.value)}
+              style={{
+                width: 44,
+                height: 36,
+                border: "1px solid var(--mantine-color-forest-3)",
+                borderRadius: 6,
+                padding: 2,
+                background: "none",
+                cursor: "pointer",
+              }}
+            />
+            <Text size="sm" c="dimmed" ff="monospace">
+              {teamColor}
+            </Text>
+          </Group>
+        </Box>
         <Card bg="forest.7" p="md">
           <Switch
             label="Auto-assign if I forget to pick"
