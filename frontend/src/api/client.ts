@@ -280,7 +280,7 @@ export interface Headline {
 }
 
 export interface LeaderboardResponse {
-  tournament: { id: string; name: string; totalRounds: number } | null;
+  tournament: { id: string; name: string; totalRounds: number; status: string } | null;
   teams: LeaderboardTeam[];
 }
 

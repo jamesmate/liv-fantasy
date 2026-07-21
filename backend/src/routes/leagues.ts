@@ -549,8 +549,8 @@ leagueRouter.get("/:id/recap", async (req, res) => {
 // /standings.
 leagueRouter.get("/:id/leaderboard", async (req, res) => {
   try {
-  const tournament = await query<{ id: string; name: string; total_rounds: number }>(
-    `select id, name, total_rounds from tournaments where league_id = $1 order by created_at desc limit 1`,
+  const tournament = await query<{ id: string; name: string; total_rounds: number; status: string }>(
+    `select id, name, total_rounds, status from tournaments where league_id = $1 order by created_at desc limit 1`,
     [req.params.id]
   );
   if (tournament.rows.length === 0) {
@@ -559,6 +559,7 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
   const tournamentId = tournament.rows[0].id;
   const tournamentName = tournament.rows[0].name;
   const totalRounds = tournament.rows[0].total_rounds;
+  const tournamentStatus = tournament.rows[0].status;
 
   const teams = await query<{
     member_id: string;
@@ -807,7 +808,10 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
     return { ...team, leaguePoints: calculatePoints(placement, result.length) };
   });
 
-  res.json({ tournament: { id: tournamentId, name: tournamentName, totalRounds }, teams: resultWithPoints });
+  res.json({
+    tournament: { id: tournamentId, name: tournamentName, totalRounds, status: tournamentStatus },
+    teams: resultWithPoints,
+  });
   } catch (err) {
     // This is the single most-loaded endpoint in the app - an
     // unguarded throw here (e.g. a column a migration hasn't been run

@@ -124,6 +124,13 @@ export default function LeaderboardTabPage() {
     startedRounds.some((r) => r.roundNumber === maxStartedRoundNumber && !r.fullyScored)
       ? maxStartedRoundNumber
       : null;
+  // Only show the points column from round 2 onwards - a single
+  // round's placement is too volatile/early to be a meaningful
+  // "projection" yet. Label makes clear it's a live projection until
+  // the tournament actually finalizes, at which point it's the real
+  // recorded points, not an estimate.
+  const showPtsColumn = maxStartedRoundNumber !== null && maxStartedRoundNumber >= 2;
+  const ptsColumnLabel = data.tournament.status === "completed" ? "Pts" : "Projected Pts";
 
   return (
     <Box p="md">
@@ -174,6 +181,11 @@ export default function LeaderboardTabPage() {
           <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.8 }}>
             Tot
           </Text>
+          {showPtsColumn && (
+            <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 1.3 }}>
+              {ptsColumnLabel}
+            </Text>
+          )}
         </Group>
 
         {(() => {
@@ -204,6 +216,7 @@ export default function LeaderboardTabPage() {
                 onToggle={() => setExpanded(expanded === team.memberId ? null : team.memberId)}
                 showBonus={showBonus}
                 liveRoundNumber={liveRoundNumber}
+                showPtsColumn={showPtsColumn}
               />
             );
           });
@@ -223,6 +236,7 @@ function TeamRow({
   onToggle,
   showBonus,
   liveRoundNumber,
+  showPtsColumn,
 }: {
   team: LeaderboardTeam;
   position: number;
@@ -231,6 +245,7 @@ function TeamRow({
   onToggle: () => void;
   showBonus: boolean;
   liveRoundNumber: number | null;
+  showPtsColumn: boolean;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
   const bonusTotal = team.rounds.reduce((sum, r) => sum + (r.bonusPick?.points ?? 0), 0);
@@ -300,12 +315,34 @@ function TeamRow({
             <Text size="sm" fw={800} c="forest.9">
               {showBonus ? bonusTotal : formatToPar(team.overallTotal)}
             </Text>
-            {isExpanded ? (
-              <IconChevronUp size={14} color="var(--mantine-color-forest-5)" />
-            ) : (
-              <IconChevronDown size={14} color="var(--mantine-color-forest-5)" />
-            )}
+            {!showPtsColumn &&
+              (isExpanded ? (
+                <IconChevronUp size={14} color="var(--mantine-color-forest-5)" />
+              ) : (
+                <IconChevronDown size={14} color="var(--mantine-color-forest-5)" />
+              ))}
           </Group>
+          {showPtsColumn && (
+            <Group gap={4} wrap="nowrap" justify="center" style={{ flex: 1.3 }}>
+              {showBonus ? (
+                <Text size="sm" fw={800} c="mint.7">
+                  <Text span size="10px" c="forest.3" fw={600}>
+                    (+{team.leaguePoints}){" "}
+                  </Text>
+                  {bonusTotal + team.leaguePoints}
+                </Text>
+              ) : (
+                <Text size="sm" fw={800} c="mint.7">
+                  {team.leaguePoints}
+                </Text>
+              )}
+              {isExpanded ? (
+                <IconChevronUp size={14} color="var(--mantine-color-forest-5)" />
+              ) : (
+                <IconChevronDown size={14} color="var(--mantine-color-forest-5)" />
+              )}
+            </Group>
+          )}
         </Group>
       </UnstyledButton>
 
