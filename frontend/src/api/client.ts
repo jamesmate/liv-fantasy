@@ -165,9 +165,9 @@ export const BONUS_CATEGORY_INFO: Record<
   },
   DOUBLE_PLUS: {
     label: "Cody Brown",
-    description: "+10 points for every double bogey (or worse) scored this round.",
+    description: "+25 points for every double bogey (or worse) scored this round.",
     emoji: "💩",
-    points: 10,
+    points: 25,
     unit: "double bogey+",
   },
   POSITIONS_GAINED: {

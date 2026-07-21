@@ -13,7 +13,7 @@ export const BONUS_CATEGORIES: BonusCategory[] = [
   {
     key: "DOUBLE_PLUS",
     label: "Cody Brown",
-    description: "+10 points for every double bogey (or worse) scored this round.",
+    description: "+25 points for every double bogey (or worse) scored this round.",
   },
   {
     key: "POSITIONS_GAINED",
@@ -29,7 +29,7 @@ export const BONUS_CATEGORIES: BonusCategory[] = [
 
 const POSITION_CATEGORIES = new Set(["POSITIONS_GAINED", "POSITIONS_LOST"]);
 const HOLE_CATEGORIES = new Set(["EAGLE", "BIRDIE", "BOGEY", "DOUBLE_PLUS"]);
-const PER_OCCURRENCE: Record<string, number> = { EAGLE: 40, BIRDIE: 4, BOGEY: 5, DOUBLE_PLUS: 10 };
+const PER_OCCURRENCE: Record<string, number> = { EAGLE: 40, BIRDIE: 4, BOGEY: 5, DOUBLE_PLUS: 25 };
 
 export function pickRandomCategory(): string {
   return BONUS_CATEGORIES[Math.floor(Math.random() * BONUS_CATEGORIES.length)].key;
