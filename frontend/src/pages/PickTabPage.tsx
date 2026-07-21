@@ -40,6 +40,7 @@ import { PixelGolferSprite } from "../components/sprites/PixelGolferSprite";
 import { getCountryFlagUrl } from "../utils/countryFlags";
 import { LoadingIndicator } from "../components/LoadingIndicator";
 import { BonusPickCard } from "../components/BonusPickCard";
+import lineupBackground from "../assets/lineup-background.png";
 
 function formatToPar(totalToPar: number | null): string {
   if (totalToPar === null) return "-";
@@ -357,11 +358,24 @@ export default function PickTabPage() {
       }}
     >
       {/* Top section: lineup zone + bonus pick, together as one
-          fixed (non-scrolling) area. The sprite zone itself keeps its
-          own fixed height (SelectedLineup relies on height:100% from
-          its immediate parent), while this outer wrapper grows to fit
+          fixed (non-scrolling) area. The course background image now
+          lives HERE (not on SelectedLineup itself) specifically so it
+          extends behind the bonus pick card too - otherwise the grass
+          graphic stops abruptly right where the sprite zone ends and
+          the bonus card sits on a plain page background, which reads
+          as two separate sections even when they're grouped in the
+          same container. The sprite zone itself keeps its own fixed
+          height (SelectedLineup relies on height:100% from its
+          immediate parent), while this outer wrapper grows to fit
           both it and the bonus card beneath it. */}
-      <Box style={{ flexShrink: 0 }}>
+      <Box
+        style={{
+          flexShrink: 0,
+          backgroundImage: `url(${lineupBackground})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center 65%",
+        }}
+      >
         <Box
           style={{
             height: "24vh",
