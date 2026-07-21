@@ -1,3 +1,15 @@
+// MUST be the very first import - this monkey-patches Express's
+// router methods so that ANY error thrown or promise rejected inside
+// an async route handler automatically gets forwarded to Express's
+// error-handling middleware, instead of silently hanging the request
+// forever (Express 4 does not do this on its own - a route handler
+// like `async (req, res) => { await query(...) }` with no try/catch
+// that throws just never sends a response at all, which looks like an
+// infinite loading spinner on the frontend). This retroactively fixes
+// every route across the whole app, not just ones manually wrapped in
+// try/catch, and prevents the same bug in anything written later too.
+import "express-async-errors";
+
 import express from "express";
 import cors from "cors";
 import { leagueRouter } from "./routes/leagues";
@@ -50,6 +62,20 @@ app.get("/tournaments/:id", async (req, res) => {
   } catch (err) {
     console.error("tournaments/:id query failed:", err);
     res.status(500).json({ error: "Failed to load tournament." });
+  }
+});
+
+// Global error handler - MUST be registered after all routes/app.use
+// calls (Express requires this exact ordering for error middleware to
+// be picked up). Catches anything express-async-errors forwards here
+// from any route in the app that threw/rejected without its own
+// try/catch, and always sends a real response rather than leaving the
+// request hanging - the single biggest recurring bug class this app
+// has hit repeatedly.
+app.use((err: unknown, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error(`[globalErrorHandler] ${req.method} ${req.path} failed:`, err);
+  if (!res.headersSent) {
+    res.status(500).json({ error: "Something went wrong. Please try again." });
   }
 });
 

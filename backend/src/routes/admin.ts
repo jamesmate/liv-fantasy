@@ -710,24 +710,29 @@ adminRouter.post("/members/:memberId/passcode", async (req, res) => {
 // separately via the seed script/admin page once the event actually
 // starts, same as always. This is purely "what's coming up".
 adminRouter.post("/schedule", async (req, res) => {
-  const { name, tour, startDate, endDate, espnEventId } = req.body;
-  if (!name || typeof name !== "string") {
-    return res.status(400).json({ error: "name is required." });
-  }
-  if (!tour || typeof tour !== "string") {
-    return res.status(400).json({ error: "tour is required." });
-  }
-  if (!startDate) {
-    return res.status(400).json({ error: "startDate is required." });
-  }
+  try {
+    const { name, tour, startDate, endDate, espnEventId } = req.body;
+    if (!name || typeof name !== "string") {
+      return res.status(400).json({ error: "name is required." });
+    }
+    if (!tour || typeof tour !== "string") {
+      return res.status(400).json({ error: "tour is required." });
+    }
+    if (!startDate) {
+      return res.status(400).json({ error: "startDate is required." });
+    }
 
-  const result = await query<{ id: string }>(
-    `insert into schedule_events (league_id, name, tour, start_date, end_date, espn_event_id)
-     values ($1, $2, $3, $4, $5, $6)
-     returning id`,
-    [req.member!.leagueId, name, tour, startDate, endDate || null, espnEventId || null]
-  );
-  res.status(201).json({ id: result.rows[0].id });
+    const result = await query<{ id: string }>(
+      `insert into schedule_events (league_id, name, tour, start_date, end_date, espn_event_id)
+       values ($1, $2, $3, $4, $5, $6)
+       returning id`,
+      [req.member!.leagueId, name, tour, startDate, endDate || null, espnEventId || null]
+    );
+    res.status(201).json({ id: result.rows[0].id });
+  } catch (err) {
+    console.error("schedule create failed:", err);
+    res.status(500).json({ error: "Failed to create schedule event." });
+  }
 });
 
 // DELETE /admin/schedule/:id
