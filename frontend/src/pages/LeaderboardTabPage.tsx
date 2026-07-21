@@ -174,9 +174,6 @@ export default function LeaderboardTabPage() {
           <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.8 }}>
             Tot
           </Text>
-          <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 1 }}>
-            {showBonus ? "+PTS" : "Pts"}
-          </Text>
         </Group>
 
         {(() => {
@@ -303,20 +300,6 @@ function TeamRow({
             <Text size="sm" fw={800} c="forest.9">
               {showBonus ? bonusTotal : formatToPar(team.overallTotal)}
             </Text>
-          </Group>
-          <Group gap={4} wrap="nowrap" justify="center" style={{ flex: 1 }}>
-            {showBonus ? (
-              <Text size="sm" fw={800} c="mint.7">
-                <Text span size="10px" c="forest.4" fw={600}>
-                  (+{team.leaguePoints}){" "}
-                </Text>
-                {bonusTotal + team.leaguePoints}
-              </Text>
-            ) : (
-              <Text size="sm" fw={800} c="mint.7">
-                {team.leaguePoints}
-              </Text>
-            )}
             {isExpanded ? (
               <IconChevronUp size={14} color="var(--mantine-color-forest-5)" />
             ) : (
