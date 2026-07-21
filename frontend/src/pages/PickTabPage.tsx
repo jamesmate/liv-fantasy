@@ -356,61 +356,65 @@ export default function PickTabPage() {
         overflow: "hidden",
       }}
     >
-      {/* Top 1/3: lineup zone over the course background - fixed,
-          does not scroll or shrink */}
-      <Box
-        style={{
-          height: "24vh",
-          minHeight: 170,
-          flexShrink: 0,
-          position: "relative",
-        }}
-      >
-        <SelectedLineup
-          slots={lineupSlots}
-          showScores={showScores}
-          teamName={teamName}
-          tournamentName={tournament?.name}
-          teamColor={teamColor}
-          roundNumber={activeRoundNumber}
-          isLocked={isLocked}
-          topScorerName={topScorerName}
-        />
-
-        {/* Round arrows pinned to the left/right edges of the lineup
-            zone, rather than centered together next to the round
-            label - matches the requested layout. */}
-        <Box style={{ position: "absolute", top: "50%", left: 8, transform: "translateY(-50%)" }}>
-          <ActionIcon
-            variant="filled"
-            color="forest.8"
-            radius="xl"
-            size={36}
-            disabled={activeRoundNumber <= 1}
-            onClick={() => setActiveRoundNumber(activeRoundNumber - 1)}
-            aria-label="Previous round"
-          >
-            <IconChevronLeft size={20} />
-          </ActionIcon>
-        </Box>
+      {/* Top section: lineup zone + bonus pick, together as one
+          fixed (non-scrolling) area. The sprite zone itself keeps its
+          own fixed height (SelectedLineup relies on height:100% from
+          its immediate parent), while this outer wrapper grows to fit
+          both it and the bonus card beneath it. */}
+      <Box style={{ flexShrink: 0 }}>
         <Box
-          style={{ position: "absolute", top: "50%", right: 8, transform: "translateY(-50%)" }}
+          style={{
+            height: "24vh",
+            minHeight: 170,
+            position: "relative",
+          }}
         >
-          <ActionIcon
-            variant="filled"
-            color="forest.8"
-            radius="xl"
-            size={36}
-            disabled={activeRoundNumber >= tournament.rounds.length}
-            onClick={() => setActiveRoundNumber(activeRoundNumber + 1)}
-            aria-label="Next round"
-          >
-            <IconChevronRight size={20} />
-          </ActionIcon>
-        </Box>
-      </Box>
+          <SelectedLineup
+            slots={lineupSlots}
+            showScores={showScores}
+            teamName={teamName}
+            tournamentName={tournament?.name}
+            teamColor={teamColor}
+            roundNumber={activeRoundNumber}
+            isLocked={isLocked}
+            topScorerName={topScorerName}
+          />
 
-      <BonusPickCard roundId={roundId} isLocked={isLocked} />
+          {/* Round arrows pinned to the left/right edges of the lineup
+              zone, rather than centered together next to the round
+              label - matches the requested layout. */}
+          <Box style={{ position: "absolute", top: "50%", left: 8, transform: "translateY(-50%)" }}>
+            <ActionIcon
+              variant="filled"
+              color="forest.8"
+              radius="xl"
+              size={36}
+              disabled={activeRoundNumber <= 1}
+              onClick={() => setActiveRoundNumber(activeRoundNumber - 1)}
+              aria-label="Previous round"
+            >
+              <IconChevronLeft size={20} />
+            </ActionIcon>
+          </Box>
+          <Box
+            style={{ position: "absolute", top: "50%", right: 8, transform: "translateY(-50%)" }}
+          >
+            <ActionIcon
+              variant="filled"
+              color="forest.8"
+              radius="xl"
+              size={36}
+              disabled={activeRoundNumber >= tournament.rounds.length}
+              onClick={() => setActiveRoundNumber(activeRoundNumber + 1)}
+              aria-label="Next round"
+            >
+              <IconChevronRight size={20} />
+            </ActionIcon>
+          </Box>
+        </Box>
+
+        <BonusPickCard roundId={roundId} isLocked={isLocked} />
+      </Box>
 
       {/* Bottom 2/3: scrollable player list */}
       <Box style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "8px 16px" }}>
