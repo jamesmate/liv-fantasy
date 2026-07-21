@@ -84,14 +84,6 @@ export function SelectedLineup({
         overflow: "hidden",
       }}
     >
-      <Box
-        style={{
-          position: "absolute",
-          inset: 0,
-          background: "linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.35))",
-        }}
-      />
-
       <Stack gap={2} align="center" style={{ position: "relative", paddingTop: 8 }}>
         {teamName && (
           <Text

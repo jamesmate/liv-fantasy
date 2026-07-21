@@ -371,11 +371,27 @@ export default function PickTabPage() {
       <Box
         style={{
           flexShrink: 0,
+          position: "relative",
+          overflow: "hidden",
           backgroundImage: `url(${lineupBackground})`,
           backgroundSize: "cover",
           backgroundPosition: "center 65%",
         }}
       >
+        {/* Dark gradient over the WHOLE combined background (sprite
+            zone + bonus card area), not just the sprite zone - it used
+            to live inside SelectedLineup itself, which only covered
+            its own original 24vh height, leaving the grass behind the
+            bonus card noticeably brighter/uneven once that background
+            was extended to cover both sections. */}
+        <Box
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "linear-gradient(to bottom, rgba(0,0,0,0.15), rgba(0,0,0,0.35))",
+            pointerEvents: "none",
+          }}
+        />
         <Box
           style={{
             height: "24vh",

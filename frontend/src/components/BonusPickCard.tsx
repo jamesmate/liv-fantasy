@@ -79,11 +79,12 @@ export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
               <Text span size="13px" fw={800}>
                 Bonus
               </Text>
-              : Earn Extra League Points!
+              {" | "}
+              {categoryInfo ? `+${categoryInfo.points} league pts per ${categoryInfo.unit}` : ""}
             </Text>
           </Box>
           <Box p={8} pt={2}>
-            <Group justify="space-between" wrap="nowrap" gap={8} mb={data.pick ? 4 : 0}>
+            <Group justify="space-between" wrap="nowrap" gap={8}>
               <Group gap={6} wrap="nowrap" style={{ minWidth: 0, flex: 1 }}>
                 {data.pick && (
                   <Box style={{ flexShrink: 0 }}>
@@ -117,9 +118,6 @@ export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
                 </Button>
               </Group>
             </Group>
-            <Text size="10px" c="forest.3" lineClamp={2}>
-              {categoryInfo?.description}
-            </Text>
           </Box>
         </Card>
       </Box>

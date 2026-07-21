@@ -138,24 +138,51 @@ export interface MyBonusPick {
   } | null;
 }
 
-export const BONUS_CATEGORY_INFO: Record<string, { label: string; description: string; emoji: string }> = {
-  EAGLE: { label: "Eagle Hunter", description: "+25 points for every eagle (or better) scored this round.", emoji: "🦅" },
-  BIRDIE: { label: "Birdie Machine", description: "+4 points for every birdie scored this round.", emoji: "🐦" },
-  BOGEY: { label: "Bogey Boy", description: "+5 points for every bogey scored this round.", emoji: "😬" },
+export const BONUS_CATEGORY_INFO: Record<
+  string,
+  { label: string; description: string; emoji: string; points: number; unit: string }
+> = {
+  EAGLE: {
+    label: "Eagle Hunter",
+    description: "+25 points for every eagle (or better) scored this round.",
+    emoji: "🦅",
+    points: 25,
+    unit: "eagle",
+  },
+  BIRDIE: {
+    label: "Birdie Machine",
+    description: "+4 points for every birdie scored this round.",
+    emoji: "🐦",
+    points: 4,
+    unit: "birdie",
+  },
+  BOGEY: {
+    label: "Bogey Boy",
+    description: "+5 points for every bogey scored this round.",
+    emoji: "😬",
+    points: 5,
+    unit: "bogey",
+  },
   DOUBLE_PLUS: {
     label: "Cody Brown",
     description: "+10 points for every double bogey (or worse) scored this round.",
     emoji: "💩",
+    points: 10,
+    unit: "double bogey+",
   },
   POSITIONS_GAINED: {
     label: "Climber",
     description: "+0.5 points (rounded) per leaderboard position gained this round.",
     emoji: "📈",
+    points: 0.5,
+    unit: "position gained",
   },
   POSITIONS_LOST: {
     label: "Bottler",
     description: "+0.5 points (rounded) per leaderboard position lost this round.",
     emoji: "📉",
+    points: 0.5,
+    unit: "position lost",
   },
 };
 
