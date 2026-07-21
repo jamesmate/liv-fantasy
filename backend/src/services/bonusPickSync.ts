@@ -7,7 +7,7 @@ export interface BonusCategory {
 }
 
 export const BONUS_CATEGORIES: BonusCategory[] = [
-  { key: "EAGLE", label: "Eagle Hunter", description: "+25 points for every eagle (or better) scored this round." },
+  { key: "EAGLE", label: "Eagle Hunter", description: "+40 points for every eagle (or better) scored this round." },
   { key: "BIRDIE", label: "Birdie Machine", description: "+4 points for every birdie scored this round." },
   { key: "BOGEY", label: "Bogey Boy", description: "+5 points for every bogey scored this round." },
   {
@@ -29,7 +29,7 @@ export const BONUS_CATEGORIES: BonusCategory[] = [
 
 const POSITION_CATEGORIES = new Set(["POSITIONS_GAINED", "POSITIONS_LOST"]);
 const HOLE_CATEGORIES = new Set(["EAGLE", "BIRDIE", "BOGEY", "DOUBLE_PLUS"]);
-const PER_OCCURRENCE: Record<string, number> = { EAGLE: 25, BIRDIE: 4, BOGEY: 5, DOUBLE_PLUS: 10 };
+const PER_OCCURRENCE: Record<string, number> = { EAGLE: 40, BIRDIE: 4, BOGEY: 5, DOUBLE_PLUS: 10 };
 
 export function pickRandomCategory(): string {
   return BONUS_CATEGORIES[Math.floor(Math.random() * BONUS_CATEGORIES.length)].key;

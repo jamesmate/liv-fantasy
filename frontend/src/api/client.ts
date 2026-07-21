@@ -144,9 +144,9 @@ export const BONUS_CATEGORY_INFO: Record<
 > = {
   EAGLE: {
     label: "Eagle Hunter",
-    description: "+25 points for every eagle (or better) scored this round.",
+    description: "+40 points for every eagle (or better) scored this round.",
     emoji: "🦅",
-    points: 25,
+    points: 40,
     unit: "eagle",
   },
   BIRDIE: {
