@@ -70,6 +70,7 @@ export default function OverallStandingsTabPage() {
           tournaments_played: s.tournaments_played,
           career_total_to_par: s.career_total_to_par,
           total_points: s.total_points,
+          bonus_points: s.bonus_points,
         }))
       : standings;
 
@@ -134,7 +135,7 @@ export default function OverallStandingsTabPage() {
           <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.6 }}>
             Played
           </Text>
-          <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 0.8 }}>
+          <Text size="xs" fw={700} c="forest.8" ta="center" style={{ flex: 1.3 }}>
             Points
           </Text>
         </Group>
@@ -178,9 +179,14 @@ export default function OverallStandingsTabPage() {
                   <Text size="sm" ta="center" c="forest.3" style={{ flex: 0.6 }}>
                     {s.tournaments_played}
                   </Text>
-                  <Text size="sm" fw={700} ta="center" c="mint.7" style={{ flex: 0.8 }}>
-                    {s.total_points}
-                  </Text>
+                  <Box style={{ flex: 1.3, textAlign: "center" }}>
+                    <Text size="sm" fw={700} c="mint.7">
+                      {s.total_points}
+                    </Text>
+                    <Text size="9px" c="forest.3">
+                      L: {s.total_points - s.bonus_points} · B: {s.bonus_points}
+                    </Text>
+                  </Box>
                   {isExpanded ? (
                     <IconChevronUp size={14} color="var(--mantine-color-forest-3)" style={{ flexShrink: 0 }} />
                   ) : (

@@ -253,12 +253,21 @@ leagueRouter.get("/:id/liv-standings", async (req, res) => {
               count(tr.id) filter (where tr.placement = 3) as thirds,
               count(tr.id) as tournaments_played,
               coalesce(sum(tr.total_to_par), 0) as career_total_to_par,
-              coalesce(sum(tr.points), 0) as total_points
+              coalesce(sum(tr.points), 0) as total_points,
+              coalesce(max(bp.bonus_points), 0) as bonus_points
          from liv_standings_members lsm
          join members m on m.id = lsm.member_id
          left join tournament_results tr
            on tr.member_id = m.id
           and tr.tournament_id in (select id from tournaments where league_id = $1 and tour = 'LIV')
+         left join (
+           select bpk.member_id, sum(bpk.points) as bonus_points
+             from bonus_picks bpk
+             join rounds r on r.id = bpk.round_id
+             join tournaments t on t.id = r.tournament_id
+            where t.league_id = $1 and t.tour = 'LIV' and t.status = 'completed'
+            group by bpk.member_id
+         ) bp on bp.member_id = m.id
         where lsm.league_id = $1
         group by m.id, m.team_name, m.display_name
         order by total_points desc, firsts desc, seconds desc, thirds desc, career_total_to_par asc`,

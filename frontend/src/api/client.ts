@@ -294,6 +294,7 @@ export interface PodiumStanding {
   tournaments_played: number;
   career_total_to_par: number;
   total_points: number;
+  bonus_points: number;
 }
 
 export interface LivStanding {
@@ -306,6 +307,7 @@ export interface LivStanding {
   tournaments_played: number;
   career_total_to_par: number;
   total_points: number;
+  bonus_points: number;
 }
 
 export interface LivStandingsMember {

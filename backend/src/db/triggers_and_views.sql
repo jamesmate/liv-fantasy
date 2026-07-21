@@ -179,6 +179,15 @@ group by m.id, m.league_id, m.team_name, m.display_name;
 -- a final tiebreak. total_points is the field-size-scaled points
 -- system (see services/tournamentResults.ts calculatePoints) shown
 -- ALONGSIDE the win counts, not replacing them.
+-- total_points already combines placement points AND bonus points
+-- together (see calculatePoints + bonusPoints in
+-- tournamentResults.ts, which sums them before storing a single
+-- points value) - bonus_points here is DERIVED separately by
+-- re-summing bonus_picks directly, rather than stored redundantly, so
+-- it's automatically correct for every tournament ever finalized
+-- without needing a backfill. "League points" (placement-only) is
+-- just total_points - bonus_points, computed by the caller rather
+-- than stored a third time here.
 create or replace view podium_standings as
 select
   m.id as member_id,
@@ -190,7 +199,16 @@ select
   count(tr.id) filter (where tr.placement = 3) as thirds,
   count(tr.id) as tournaments_played,
   coalesce(sum(tr.total_to_par), 0) as career_total_to_par,
-  coalesce(sum(tr.points), 0) as total_points
+  coalesce(sum(tr.points), 0) as total_points,
+  coalesce(max(bp.bonus_points), 0) as bonus_points
 from members m
 left join tournament_results tr on tr.member_id = m.id
+left join (
+  select bpk.member_id, sum(bpk.points) as bonus_points
+    from bonus_picks bpk
+    join rounds r on r.id = bpk.round_id
+    join tournaments t on t.id = r.tournament_id
+   where t.status = 'completed'
+   group by bpk.member_id
+) bp on bp.member_id = m.id
 group by m.id, m.league_id, m.team_name, m.display_name;
