@@ -12,7 +12,7 @@ export const BONUS_CATEGORIES: BonusCategory[] = [
   { key: "BOGEY", label: "Bogey Boy", description: "+5 points for every bogey scored this round." },
   {
     key: "DOUBLE_PLUS",
-    label: "Bogey Monster",
+    label: "Cody Brown",
     description: "+10 points for every double bogey (or worse) scored this round.",
   },
   {

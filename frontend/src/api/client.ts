@@ -143,9 +143,9 @@ export const BONUS_CATEGORY_INFO: Record<string, { label: string; description: s
   BIRDIE: { label: "Birdie Machine", description: "+4 points for every birdie scored this round.", emoji: "🐦" },
   BOGEY: { label: "Bogey Boy", description: "+5 points for every bogey scored this round.", emoji: "😬" },
   DOUBLE_PLUS: {
-    label: "Bogey Monster",
+    label: "Cody Brown",
     description: "+10 points for every double bogey (or worse) scored this round.",
-    emoji: "💥",
+    emoji: "💩",
   },
   POSITIONS_GAINED: {
     label: "Climber",
