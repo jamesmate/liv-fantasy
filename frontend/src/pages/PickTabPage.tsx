@@ -485,29 +485,41 @@ export default function PickTabPage() {
             />
           )}
 
-          <Group justify="flex-end" gap={6}>
-            <Text size="xs" c="forest.3">
-              Sort:
-            </Text>
-            <Button.Group>
-              <Button
-                size="compact-xs"
-                variant={sortMode === "name" ? "filled" : "light"}
-                color="mint"
-                onClick={() => setSortMode("name")}
-              >
-                Surname
-              </Button>
-              <Button
-                size="compact-xs"
-                variant={sortMode === "leaderboard" ? "filled" : "light"}
-                color="mint"
-                onClick={() => setSortMode("leaderboard")}
-              >
-                Leaderboard
-              </Button>
-            </Button.Group>
-          </Group>
+          <Box
+            style={{
+              position: "sticky",
+              top: -8, // cancels out the scrollable Box's own 8px top padding, so this sits flush at the very top when stuck
+              zIndex: 5,
+              background: "var(--mantine-color-forest-0)",
+              paddingTop: 8,
+              paddingBottom: 6,
+              marginTop: -8,
+            }}
+          >
+            <Group justify="flex-end" gap={6}>
+              <Text size="xs" c="forest.3">
+                Sort:
+              </Text>
+              <Button.Group>
+                <Button
+                  size="compact-xs"
+                  variant={sortMode === "name" ? "filled" : "light"}
+                  color="mint"
+                  onClick={() => setSortMode("name")}
+                >
+                  Surname
+                </Button>
+                <Button
+                  size="compact-xs"
+                  variant={sortMode === "leaderboard" ? "filled" : "light"}
+                  color="mint"
+                  onClick={() => setSortMode("leaderboard")}
+                >
+                  Leaderboard
+                </Button>
+              </Button.Group>
+            </Group>
+          </Box>
 
           {sortedPlayers.map((p) => {
             const disabled = isLocked || p.already_used || !p.is_active;
