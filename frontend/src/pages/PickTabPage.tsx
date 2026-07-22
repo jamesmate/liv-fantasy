@@ -40,6 +40,7 @@ import { PixelGolferSprite } from "../components/sprites/PixelGolferSprite";
 import { getCountryFlagUrl } from "../utils/countryFlags";
 import { LoadingIndicator } from "../components/LoadingIndicator";
 import { BonusPickCard } from "../components/BonusPickCard";
+import { RulesIntroPopup } from "../components/RulesIntroPopup";
 import lineupBackground from "../assets/lineup-background.png";
 
 function formatToPar(totalToPar: number | null): string {
@@ -357,6 +358,8 @@ export default function PickTabPage() {
         overflow: "hidden",
       }}
     >
+      <RulesIntroPopup tournamentId={tournament?.id ?? null} />
+
       {/* Top section: lineup zone + bonus pick, together as one
           fixed (non-scrolling) area. The course background image now
           lives HERE (not on SelectedLineup itself) specifically so it
