@@ -64,12 +64,13 @@ export function BottomTabBar() {
 
   return (
     <Group
-      h="100%"
       grow
       gap={0}
       wrap="nowrap"
       style={{
         background: "var(--mantine-color-forest-8)",
+        height: 64,
+        paddingBottom: "env(safe-area-inset-bottom)",
       }}
     >
       {TABS.map((tab) => {

@@ -1,0 +1,14 @@
+/* iOS Safari automatically zooms the whole page in when a focused
+   input's font-size is under 16px - this is deliberate iOS behavior
+   (not a bug), meant to keep text readable, but it means every text
+   field, textarea, and select in this app was triggering it, since
+   Mantine's default input font sizes are smaller than that. Forcing
+   16px specifically on focus avoids the zoom without needing to
+   enlarge how these inputs look the rest of the time. */
+@media screen and (max-width: 768px) {
+  input:focus,
+  textarea:focus,
+  select:focus {
+    font-size: 16px !important;
+  }
+}

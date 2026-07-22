@@ -20,11 +20,12 @@ export default function App() {
     <BrowserRouter>
       <AppShell
         header={{ height: 60 }}
-        footer={{ height: 64 }}
+        footer={{ height: "calc(64px + env(safe-area-inset-bottom))" }}
         styles={{
           header: {
             background: "var(--mantine-color-forest-8)",
             borderBottom: "none",
+            paddingTop: "env(safe-area-inset-top)",
           },
           footer: {
             border: "none",
