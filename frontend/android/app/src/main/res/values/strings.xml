@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">JAMGOLF</string>
+    <string name="title_activity_main">JAMGOLF</string>
+    <string name="package_name">io.jamdog.livfantasy</string>
+    <string name="custom_url_scheme">io.jamdog.livfantasy</string>
+</resources>
