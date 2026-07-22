@@ -40,7 +40,7 @@ import { PixelGolferSprite } from "../components/sprites/PixelGolferSprite";
 import { getCountryFlagUrl } from "../utils/countryFlags";
 import { LoadingIndicator } from "../components/LoadingIndicator";
 import { BonusPickCard } from "../components/BonusPickCard";
-import { RulesIntroPopup } from "../components/RulesIntroPopup";
+import { RulesModal } from "../components/RulesModal";
 import lineupBackground from "../assets/lineup-background.png";
 
 function formatToPar(totalToPar: number | null): string {
@@ -57,9 +57,11 @@ function formatToPar(totalToPar: number | null): string {
 // would show the un-doubled score until the next save/reload, even
 // though the ring/pose already updated live.
 function applyDoublePlay(score: number): number {
-  if (score < 0) return score * 2;
-  if (score > 0) return Math.ceil(score / 2);
-  return 0;
+  return score * 2;
+}
+
+function rulesSeenKey(tournamentId: string) {
+  return `liv_fantasy_rules_seen_${tournamentId}`;
 }
 
 // Diverging red-to-green gradient for a single round's score, used on
@@ -126,10 +128,24 @@ export default function PickTabPage() {
 
   const [doublePlayStatus, setDoublePlayStatus] = useState<DoublePlayStatus | null>(null);
   const [teamColor, setTeamColor] = useState<string | null>(null);
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   useEffect(() => {
     api.getMyTeam().then((team) => setTeamColor(team?.team_color ?? null)).catch(() => {});
   }, []);
+
+  useEffect(() => {
+    if (!tournament?.id) return;
+    const seen = localStorage.getItem(rulesSeenKey(tournament.id));
+    if (!seen) setRulesOpen(true);
+  }, [tournament?.id]);
+
+  function closeRules() {
+    if (tournament?.id) {
+      localStorage.setItem(rulesSeenKey(tournament.id), "true");
+    }
+    setRulesOpen(false);
+  }
 
   const activeRound = tournament?.rounds.find((r) => r.round_number === activeRoundNumber);
   const roundId = activeRound?.id ?? null;
@@ -358,7 +374,7 @@ export default function PickTabPage() {
         overflow: "hidden",
       }}
     >
-      <RulesIntroPopup tournamentId={tournament?.id ?? null} />
+      <RulesModal opened={rulesOpen} onClose={closeRules} />
 
       {/* Top section: lineup zone + bonus pick, together as one
           fixed (non-scrolling) area. The course background image now
@@ -395,6 +411,23 @@ export default function PickTabPage() {
             pointerEvents: "none",
           }}
         />
+
+        {/* Reopens the same rules explanation on demand, anytime -
+            not just the automatic first-visit-per-tournament popup. */}
+        <ActionIcon
+          variant="filled"
+          color="forest.8"
+          radius="xl"
+          size={28}
+          onClick={() => setRulesOpen(true)}
+          aria-label="How this works"
+          style={{ position: "absolute", top: 8, left: 8, zIndex: 2 }}
+        >
+          <Text size="sm" fw={800} c="white">
+            ?
+          </Text>
+        </ActionIcon>
+
         <Box
           style={{
             height: "24vh",

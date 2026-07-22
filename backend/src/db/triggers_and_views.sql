@@ -29,16 +29,16 @@ create trigger trg_max_picks_per_round
 --   zero (par)                  -> unchanged
 -- Ceiling on the positive half is what makes +4 -> +2 (exact) and
 -- +7 -> +4 (3.5 rounded up) - the player-favorable rounding direction.
+-- Double Play always multiplies by 2, in both directions - a good
+-- round (-2) becomes -4, a bad round (+2) becomes +4. This used to
+-- soften a bad round instead (halving the penalty rather than
+-- doubling it), which was a deliberate earlier design choice, but has
+-- been changed to a straightforward flat x2 either way per updated
+-- rules.
 create or replace function apply_double_play(score int)
 returns int as $$
 begin
-  if score < 0 then
-    return score * 2;
-  elsif score > 0 then
-    return ceil(score / 2.0)::int;
-  else
-    return 0;
-  end if;
+  return score * 2;
 end;
 $$ language plpgsql immutable;
 
