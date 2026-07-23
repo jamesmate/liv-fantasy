@@ -33,18 +33,32 @@ import { NormalizedLeaderboard, NormalizedPlayerRound } from "./espnGolf";
 
 export interface LivScoreRow {
   shortName: string; // e.g. "L. Herbert"
-  thru: number;      // 0-18
+  // The "Hole" column from the leaderboard. CONFIRMED semantics from
+  // watching a real live round: during play this is the hole the
+  // player is currently ON (not holes completed - shotgun starts mean
+  // those differ); between rounds it shows their NEXT round's starting
+  // hole; "F" means they have finished the current round.
+  holeToken: string;
   rounds: (number | null)[]; // index 0=R1...3=R4, null if not played
-  status: "in_progress" | "completed" | "withdrawn";
+  currentRoundScore: number | null; // the second-to-last column
+  total: number | null; // the last column
+  withdrawn: boolean;
 }
 
-/**
- * Parses a score string like "-11", "+3", "E" into a numeric value.
- * Returns null for dashes (round not played), blanks, or unrecognised values.
- */
-function parseScore(raw: string): number | null {
+export interface LivLeaderboardParse {
+  rows: LivScoreRow[];
+  // Which round the page considers current (from the round banner,
+  // e.g. "Round 2 Jul 24, 12:15 PM UTC" -> 2). Rounds BEFORE this are
+  // definitively complete.
+  currentRound: number;
+  // True when the banner says "Round N has now finished" (only shown
+  // once the whole event is over).
+  currentRoundFinished: boolean;
+}
+
+function parseScoreToken(raw: string): number | null {
   const s = raw.trim();
-  if (!s || s === "-" || s === "—" || s === "———") return null;
+  if (!s || s === "-" || s === "—") return null;
   if (s === "E") return 0;
   const n = parseInt(s, 10);
   return isNaN(n) ? null : n;
@@ -53,13 +67,11 @@ function parseScore(raw: string): number | null {
 /**
  * Scrapes live/final scores for all players from livgolf.com's
  * leaderboard page for a given event slug (e.g. "uk", "andalucia-2026").
- * Returns one row per player in the field, plus withdrawn/reserve
- * entries with status "withdrawn".
  */
 export async function getLivLeaderboard(
   eventSlug: string,
   season: number = 2026
-): Promise<LivScoreRow[]> {
+): Promise<LivLeaderboardParse> {
   const url = `https://www.livgolf.com/leaderboard/${season}/${eventSlug}`;
   const res = await fetch(url, {
     headers: {
@@ -77,101 +89,103 @@ export async function getLivLeaderboard(
 }
 
 /**
- * Parses the raw HTML from livgolf.com's leaderboard page.
- * The relevant data pattern for each player looks like:
+ * Parses the leaderboard page. Each player's score summary renders
+ * (after tag-stripping) as a single line with SEVEN columns run
+ * together, matching the on-page table header
+ * "Hole | Round 1 | Round 2 | Round 3 | Round 4 | R{n} | Tot":
  *
- *   P. LASTNAME\n...\nTeam Name\n{thru}-{R1}———{R2}{R3}{R4}-{tot}
+ *   {Hole}{R1}{R2}{R3}{R4}{currentRound}{Total}
  *
- * This regex finds player entries by looking for a hole number
- * followed by the score pattern for up to 4 rounds.
+ * where unplayed rounds are em-dashes. Real examples (from the live
+ * UK 2026 event):
+ *   "1-11———-11-11"   -> hole 1 (next-round start), R1=-11, tot=-11
+ *   "15+1———+1+1"     -> hole 15, R1=+1, tot=+1
+ *   "F-4-2-4-1-1-11"  -> finished, R1..R4 = -4,-2,-4,-1, tot=-11
+ *
+ * IMPORTANT (learned the hard way from a real live round): the last
+ * TWO values are current-round-score and total, NOT round scores -
+ * naively reading all values as rounds double-counts and corrupts
+ * totals mid-event.
  */
-export function parseLivLeaderboardHtml(html: string): LivScoreRow[] {
-  const results: LivScoreRow[] = [];
+export function parseLivLeaderboardHtml(html: string): LivLeaderboardParse {
+  const cleaned = html.replace(/&amp;/g, "&").replace(/&nbsp;/g, " ");
 
-  // The score line pattern: a hole number (1-18 or "F" for finished)
-  // followed by round scores. On livgolf.com this renders as text like:
-  // "1-11———-11-11" for a round 1 only entry, holes thru = 1, R1=-11
-  // "F-11———-11-11" for a completed round
-  // We extract player rows by scanning for the shortName + score block.
+  // Round state banner - authoritative signal for which rounds are
+  // definitively complete.
+  let currentRound = 1;
+  let currentRoundFinished = false;
+  const finishedMatch = cleaned.match(/Round\s*(\d)\s*has now finished/i);
+  if (finishedMatch) {
+    currentRound = parseInt(finishedMatch[1], 10);
+    currentRoundFinished = true;
+  } else {
+    const bannerMatch = cleaned.match(/Round\s*(\d)/);
+    if (bannerMatch) currentRound = parseInt(bannerMatch[1], 10);
+  }
 
-  // Extract the main player table section (between main leaderboard
-  // and Withdrawn section)
-  const mainSection = html.split("Withdrawn")[0] ?? html;
-  const withdrawnSection = html.split("Withdrawn &amp; Reserves")[1] ?? "";
+  const withdrawnSection = cleaned.split(/Withdrawn\s*&\s*Reserves/)[1] ?? "";
 
-  // Pattern: short name line followed eventually by thru-score pattern
-  // We look for "F. Lastname" style names then find the adjacent score
-  const nameScoreRegex =
-    /([A-Z]\.\s[A-Za-zÁÉÍÓÚÜÑáéíóúüñ''\-]+(?:\s[A-Z]{1,3}\.?)?(?:\s[A-Za-z]+)?)\n[\s\S]{0,300}?\n(\d+|F|WD)([-+E\d—\-]+)/g;
-
-  // Simpler approach: find each row from structured text blocks
-  // The page text for each player looks like:
-  // "{pos}\n{name}\n{team}\n{hole}{R1}———{R2}{R3}{R4}{tot}"
-  // We parse by finding lines that match the score pattern directly
-
-  const lines = html
-    .replace(/&amp;/g, "&")
-    .replace(/&nbsp;/g, " ")
-    .replace(/<[^>]+>/g, "\n")  // strip HTML tags
+  const lines = cleaned
+    .replace(/<[^>]+>/g, "\n")
     .split("\n")
     .map((l) => l.trim())
     .filter(Boolean);
 
-  // Scan for lines that look like: "1-11———-11-11" or "F-8———-8-8"
-  // which are the score summary lines on livgolf.com's leaderboard
+  const rows: LivScoreRow[] = [];
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
 
-    // Score summary line: starts with hole number (1-18) or "F"
-    // followed by round scores. Pattern: digit(s) or F, then +/-/E/digit
-    const scoreMatch = line.match(
-      /^(\d{1,2}|F)\s*([-+]?\d+|E)\s*(?:—+)?\s*([-+]?\d+|E)?\s*(?:—+)?\s*([-+]?\d+|E)?\s*(?:—+)?\s*([-+]?\d+|E)?\s*(?:—+)?\s*([-+]?\d+|E)?/
-    );
-    if (!scoreMatch) continue;
+    // A score summary line: hole token (1-18 or F) followed by a run
+    // of score tokens ("+1", "-11", "E") and em-dashes.
+    const m = line.match(/^(\d{1,2}|F)((?:[-+]\d{1,2}|E|—)+)$/);
+    if (!m) continue;
 
-    const thruRaw = scoreMatch[1];
-    const thru = thruRaw === "F" ? 18 : parseInt(thruRaw, 10);
+    const holeToken = m[1];
+    const valueTokens = m[2].match(/[-+]\d{1,2}|E|—/g) ?? [];
+    // Exactly 6 value slots: R1, R2, R3, R4, current-round, total.
+    if (valueTokens.length !== 6) continue;
 
-    // Round scores: positions 2,3,4,5 = R1,R2,R3,R4 (scoreMatch[6] is total, we skip it)
-    const r1 = parseScore(scoreMatch[2] ?? "");
-    const r2 = parseScore(scoreMatch[3] ?? "");
-    const r3 = parseScore(scoreMatch[4] ?? "");
-    const r4 = parseScore(scoreMatch[5] ?? "");
-
-    // Find the player name in the preceding lines (look back up to 10 lines)
+    // Find the player's short name in the preceding lines.
     let shortName: string | null = null;
     for (let j = i - 1; j >= Math.max(0, i - 10); j--) {
       const candidate = lines[j];
-      // Short name format: "F. Lastname" or "A. B. Lastname"
-      if (/^[A-Z]\.\s[A-Za-z]/.test(candidate) && candidate.length < 40) {
+      if (/^[A-Z]\.\s?[A-Za-z]/.test(candidate) && candidate.length < 40) {
         shortName = candidate;
         break;
       }
     }
     if (!shortName) continue;
-    if (results.some((r) => r.shortName === shortName)) continue; // dedupe
+    if (rows.some((r) => r.shortName === shortName)) continue;
 
-    const status = thruRaw === "F" ? "completed" : "in_progress";
-
-    results.push({
+    rows.push({
       shortName,
-      thru,
-      rounds: [r1, r2, r3, r4],
-      status,
+      holeToken,
+      rounds: valueTokens.slice(0, 4).map(parseScoreToken),
+      currentRoundScore: parseScoreToken(valueTokens[4]),
+      total: parseScoreToken(valueTokens[5]),
+      withdrawn: false,
     });
   }
 
-  // Parse withdrawn players from the Withdrawn & Reserves section
+  // Withdrawn players
   const wdNameRegex = /([A-Z]\.\s[A-Za-z][A-Za-z\s'\-]{2,30})/g;
   let wdMatch;
   while ((wdMatch = wdNameRegex.exec(withdrawnSection)) !== null) {
     const shortName = wdMatch[1].trim();
-    if (!results.some((r) => r.shortName === shortName)) {
-      results.push({ shortName, thru: 0, rounds: [null, null, null, null], status: "withdrawn" });
+    if (!rows.some((r) => r.shortName === shortName)) {
+      rows.push({
+        shortName,
+        holeToken: "0",
+        rounds: [null, null, null, null],
+        currentRoundScore: null,
+        total: null,
+        withdrawn: true,
+      });
     }
   }
 
-  return results;
+  return { rows, currentRound, currentRoundFinished };
 }
 
 /**
@@ -180,50 +194,71 @@ export function parseLivLeaderboardHtml(html: string): LivScoreRow[] {
  */
 export function livShortNameToSurname(shortName: string): string {
   const parts = shortName.split(" ");
-  // Drop the initial (e.g. "L.") and any middle initials
   const surname = parts.filter((p) => !/^[A-Z]\.$/.test(p)).join(" ");
   return surname.trim();
 }
 
 /**
- * Converts a LivScoreRow into the NormalizedPlayerRound shape the
- * rest of the sync pipeline expects (same shape as espnGolf.ts output).
- * espnPlayerId and fullName must be provided by the caller from DB lookups.
+ * Converts a LivScoreRow into NormalizedPlayerRound entries.
+ *
+ * Round status logic uses the page's round banner as ground truth:
+ * - rounds before `currentRound` are definitively completed (thru 18)
+ * - the current round is completed if the event is over
+ *   (`currentRoundFinished`) or this player's hole token is "F";
+ *   otherwise it's in progress, with `thru` approximated by the hole
+ *   they're currently on (exact holes-completed isn't derivable from
+ *   the leaderboard under shotgun starts - it self-corrects to 18 at
+ *   round end).
  */
 export function livRowToNormalizedRounds(
   row: LivScoreRow,
   espnPlayerId: string,
-  fullName: string
+  fullName: string,
+  currentRound: number,
+  currentRoundFinished: boolean
 ): NormalizedPlayerRound[] {
   const result: NormalizedPlayerRound[] = [];
 
   for (let roundIdx = 0; roundIdx < row.rounds.length; roundIdx++) {
     const roundNumber = roundIdx + 1;
     const scoreToPar = row.rounds[roundIdx];
+    if (scoreToPar === null) continue;
 
-    // Skip rounds that haven't been played at all (null score, round > current)
-    if (scoreToPar === null && row.status !== "withdrawn") continue;
+    const isCompleted =
+      roundNumber < currentRound ||
+      currentRoundFinished ||
+      (roundNumber === currentRound && row.holeToken === "F");
 
-    const isCurrentRound = scoreToPar !== null && row.rounds.slice(roundIdx + 1).every((s) => s === null);
-    const thru = isCurrentRound ? row.thru : scoreToPar !== null ? 18 : 0;
-    const status: NormalizedPlayerRound["status"] =
-      row.status === "withdrawn"
-        ? "withdrawn"
-        : isCurrentRound && thru < 18
-        ? "in_progress"
-        : scoreToPar !== null
-        ? "completed"
-        : "not_started";
+    const thru = isCompleted
+      ? 18
+      : /^\d+$/.test(row.holeToken)
+      ? Math.min(18, Math.max(1, parseInt(row.holeToken, 10)))
+      : 0;
 
     result.push({
       espnPlayerId,
       fullName,
       proTeamName: null,
       roundNumber,
-      scoreToPar: scoreToPar ?? null,
+      scoreToPar,
       thru,
       teeTime: null,
-      status,
+      status: row.withdrawn ? "withdrawn" : isCompleted ? "completed" : "in_progress",
+      startPosition: null,
+      currentPosition: null,
+    });
+  }
+
+  if (result.length === 0 && row.withdrawn) {
+    result.push({
+      espnPlayerId,
+      fullName,
+      proTeamName: null,
+      roundNumber: 1,
+      scoreToPar: null,
+      thru: 0,
+      teeTime: null,
+      status: "withdrawn",
       startPosition: null,
       currentPosition: null,
     });
@@ -233,38 +268,39 @@ export function livRowToNormalizedRounds(
 }
 
 /**
- * Top-level function: fetches and normalizes the full LIV leaderboard
- * for a given event slug into the NormalizedLeaderboard shape,
- * cross-referencing names against a map of surname → ESPN player ID
- * provided by the caller (built from tournament_players in the DB).
+ * Top-level: fetches + normalizes the full LIV leaderboard for an
+ * event slug, matching players by surname against the provided map
+ * (built from tournament_players in the DB).
  */
 export async function getLivNormalizedLeaderboard(
   eventSlug: string,
   surnameToPlayer: Map<string, { espnPlayerId: string; fullName: string }>,
   season: number = 2026
 ): Promise<NormalizedLeaderboard> {
-  const rows = await getLivLeaderboard(eventSlug, season);
+  const parse = await getLivLeaderboard(eventSlug, season);
   const players: NormalizedPlayerRound[] = [];
 
-  for (const row of rows) {
+  for (const row of parse.rows) {
     const surname = livShortNameToSurname(row.shortName);
     const player = surnameToPlayer.get(surname.toLowerCase());
     if (!player) {
       console.log(`[livAdapter] no player match for "${row.shortName}" (surname: "${surname}")`);
       continue;
     }
-    const normalized = livRowToNormalizedRounds(row, player.espnPlayerId, player.fullName);
-    players.push(...normalized);
+    players.push(
+      ...livRowToNormalizedRounds(row, player.espnPlayerId, player.fullName, parse.currentRound, parse.currentRoundFinished)
+    );
   }
 
   return {
     espnEventId: eventSlug,
     eventName: `LIV Golf ${eventSlug}`,
-    currentRound: Math.max(1, ...rows.flatMap((r) => r.rounds.map((s, i) => (s !== null ? i + 1 : 0)))),
-    eventCompleted: rows.length > 0 && rows.every((r) => r.status === "completed" || r.status === "withdrawn"),
+    currentRound: parse.currentRound,
+    eventCompleted: parse.currentRoundFinished && parse.currentRound >= 4,
     players,
   };
 }
+
 
 /* ------------------------------------------------------------------ */
 /* Hole-by-hole scorecards                                             */
