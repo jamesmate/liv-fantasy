@@ -62,6 +62,23 @@ export async function syncTournamentScores(tournamentId: string, espnEventId: st
       } catch (err) {
         console.error(`[scoreSync] holes-remaining estimate failed (non-fatal):`, err);
       }
+
+      // Clean up phantom rows: delete score rows for rounds that the
+      // source data says haven't started. Guards against stale rows
+      // from earlier parser bugs (a misread once wrote fake R2-R4
+      // rows that upserts alone would never remove, silently
+      // corrupting totals until manually deleted).
+      const hasCurrentRoundData = livParse.rows.some((r) => r.rounds[livParse.currentRound - 1] !== null);
+      const firstUnstartedRound = hasCurrentRoundData ? livParse.currentRound + 1 : livParse.currentRound;
+      await query(
+        `delete from player_round_scores prs
+          using rounds r
+          where prs.round_id = r.id
+            and r.tournament_id = $1
+            and r.round_number >= $2
+            and prs.manually_overridden = false`,
+        [tournamentId, firstUnstartedRound]
+      );
     } catch (err) {
       console.error(`[scoreSync] LIV scrape failed for tournament ${tournamentId}:`, err);
       throw err;
