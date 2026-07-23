@@ -124,8 +124,9 @@ export function parseLivLeaderboardHtml(html: string): LivLeaderboardParse {
   }
 
   const withdrawnSection = cleaned.split(/Withdrawn\s*&\s*Reserves/)[1] ?? "";
+  const mainSection = cleaned.split(/Withdrawn\s*&\s*Reserves/)[0] ?? cleaned;
 
-  const lines = cleaned
+  const lines = mainSection
     .replace(/<[^>]+>/g, "\n")
     .split("\n")
     .map((l) => l.trim())
@@ -133,30 +134,39 @@ export function parseLivLeaderboardHtml(html: string): LivLeaderboardParse {
 
   const rows: LivScoreRow[] = [];
 
+  // In the real HTML every table cell is its own text node, so after
+  // tag-stripping a player's row arrives as SEPARATE lines ("1",
+  // "-11", "—", "—", "—", "-11", "-11") - though some render paths
+  // concatenate them into one line ("1-11———-11-11"). Handle both by
+  // tokenizing each line and accumulating tokens per player: after a
+  // player's name line, collect exactly 1 hole token + 6 value tokens
+  // (R1-R4, current round, total), stopping if the next player's name
+  // appears first.
+  const isNameLine = (l: string) => /^[A-Z]\.\s?[A-Z]/.test(l) && l.length < 40;
+
+  const tokenize = (l: string): string[] => {
+    // Value tokens: signed scores (+1/-11), E, em-dashes; hole tokens:
+    // bare 1-18 or F. \b guards keep digits inside words ("4Aces",
+    // "R2Tot") from matching.
+    return l.match(/[-+]\d{1,2}|—|\bE\b|\bF\b|\b\d{1,2}\b/g) ?? [];
+  };
+
   for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-
-    // A score summary line: hole token (1-18 or F) followed by a run
-    // of score tokens ("+1", "-11", "E") and em-dashes.
-    const m = line.match(/^(\d{1,2}|F)((?:[-+]\d{1,2}|E|—)+)$/);
-    if (!m) continue;
-
-    const holeToken = m[1];
-    const valueTokens = m[2].match(/[-+]\d{1,2}|E|—/g) ?? [];
-    // Exactly 6 value slots: R1, R2, R3, R4, current-round, total.
-    if (valueTokens.length !== 6) continue;
-
-    // Find the player's short name in the preceding lines.
-    let shortName: string | null = null;
-    for (let j = i - 1; j >= Math.max(0, i - 10); j--) {
-      const candidate = lines[j];
-      if (/^[A-Z]\.\s?[A-Za-z]/.test(candidate) && candidate.length < 40) {
-        shortName = candidate;
-        break;
-      }
-    }
-    if (!shortName) continue;
+    if (!isNameLine(lines[i])) continue;
+    const shortName = lines[i];
     if (rows.some((r) => r.shortName === shortName)) continue;
+
+    const tokens: string[] = [];
+    for (let j = i + 1; j < Math.min(lines.length, i + 20) && tokens.length < 7; j++) {
+      if (isNameLine(lines[j])) break;
+      tokens.push(...tokenize(lines[j]));
+    }
+    if (tokens.length < 7) continue;
+
+    const holeToken = tokens[0];
+    if (!/^(\d{1,2}|F)$/.test(holeToken)) continue;
+    const valueTokens = tokens.slice(1, 7);
+    if (!valueTokens.every((t) => /^([-+]\d{1,2}|E|—)$/.test(t))) continue;
 
     rows.push({
       shortName,
