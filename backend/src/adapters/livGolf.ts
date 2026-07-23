@@ -208,6 +208,49 @@ export function livShortNameToSurname(shortName: string): string {
   return surname.trim();
 }
 
+/** Lowercase + strip diacritics, so "García" and "Garcia" compare equal. */
+function normalizeName(s: string): string {
+  return s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+}
+
+export interface LivPlayerRef {
+  espnPlayerId: string;
+  fullName: string;
+}
+
+/**
+ * Matches a livgolf.com short name ("S. Garcia", "A. Kim",
+ * "B. Hun An") to a player from our DB. Learned-the-hard-way cases
+ * this handles that a naive surname map does not:
+ * - accents: DB "Sergio García" vs site "S. Garcia"
+ * - surname collisions: Anthony Kim vs Minkyu Kim, Danny Lee vs
+ *   Richard T. Lee - disambiguated by first-name initial
+ * - multi-word surnames: "B. Hun An" -> "Byeong Hun An",
+ *   "C. Howell III" -> "Charles Howell III"
+ */
+export function matchLivShortName(shortName: string, players: LivPlayerRef[]): LivPlayerRef | null {
+  const surname = normalizeName(livShortNameToSurname(shortName));
+  if (!surname) return null;
+  const initial = normalizeName(shortName).charAt(0);
+
+  const bySurname = players.filter((p) => {
+    const full = normalizeName(p.fullName);
+    return full === surname || full.endsWith(" " + surname);
+  });
+  if (bySurname.length === 1) return bySurname[0];
+  if (bySurname.length === 0) return null;
+
+  const byInitial = bySurname.filter((p) => normalizeName(p.fullName).charAt(0) === initial);
+  if (byInitial.length === 1) return byInitial[0];
+
+  console.log(`[livAdapter] ambiguous match for "${shortName}": ${bySurname.map((p) => p.fullName).join(", ")}`);
+  return null;
+}
+
 /**
  * Converts a LivScoreRow into NormalizedPlayerRound entries.
  *
@@ -284,18 +327,17 @@ export function livRowToNormalizedRounds(
 export function normalizeLivParse(
   eventSlug: string,
   parse: LivLeaderboardParse,
-  surnameToPlayer: Map<string, { espnPlayerId: string; fullName: string }>
+  players: LivPlayerRef[]
 ): NormalizedLeaderboard {
-  const players: NormalizedPlayerRound[] = [];
+  const normalized: NormalizedPlayerRound[] = [];
 
   for (const row of parse.rows) {
-    const surname = livShortNameToSurname(row.shortName);
-    const player = surnameToPlayer.get(surname.toLowerCase());
+    const player = matchLivShortName(row.shortName, players);
     if (!player) {
-      console.log(`[livAdapter] no player match for "${row.shortName}" (surname: "${surname}")`);
+      console.log(`[livAdapter] no player match for "${row.shortName}"`);
       continue;
     }
-    players.push(
+    normalized.push(
       ...livRowToNormalizedRounds(row, player.espnPlayerId, player.fullName, parse.currentRound, parse.currentRoundFinished)
     );
   }
@@ -305,7 +347,7 @@ export function normalizeLivParse(
     eventName: `LIV Golf ${eventSlug}`,
     currentRound: parse.currentRound,
     eventCompleted: parse.currentRoundFinished && parse.currentRound >= 4,
-    players,
+    players: normalized,
   };
 }
 
@@ -316,11 +358,11 @@ export function normalizeLivParse(
  */
 export async function getLivNormalizedLeaderboard(
   eventSlug: string,
-  surnameToPlayer: Map<string, { espnPlayerId: string; fullName: string }>,
+  players: LivPlayerRef[],
   season: number = 2026
 ): Promise<NormalizedLeaderboard> {
   const parse = await getLivLeaderboard(eventSlug, season);
-  return normalizeLivParse(eventSlug, parse, surnameToPlayer);
+  return normalizeLivParse(eventSlug, parse, players);
 }
 
 
@@ -470,7 +512,7 @@ export function parseLivScorecardHtml(html: string): LivScorecardRound[] {
 export async function estimateHolesRemaining(
   eventSlug: string,
   parse: LivLeaderboardParse,
-  surnameToPlayer: Map<string, { espnPlayerId: string; fullName: string }>,
+  players: LivPlayerRef[],
   season: number = 2026,
   sampleSize: number = 3
 ): Promise<number | null> {
@@ -481,8 +523,7 @@ export async function estimateHolesRemaining(
 
   let maxRemaining: number | null = null;
   for (const row of inProgress.slice(0, sampleSize)) {
-    const surname = livShortNameToSurname(row.shortName).toLowerCase();
-    const player = surnameToPlayer.get(surname);
+    const player = matchLivShortName(row.shortName, players);
     if (!player) continue;
     try {
       const scorecard = await getLivPlayerScorecard(eventSlug, playerNameToLivSlug(player.fullName), season);

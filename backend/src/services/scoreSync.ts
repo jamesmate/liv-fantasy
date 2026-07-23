@@ -45,19 +45,15 @@ export async function syncTournamentScores(tournamentId: string, espnEventId: st
         `select espn_player_id, full_name from tournament_players where tournament_id = $1 and espn_player_id is not null`,
         [tournamentId]
       );
-      const surnameMap = new Map<string, { espnPlayerId: string; fullName: string }>();
-      for (const p of players.rows) {
-        const surname = p.full_name.split(" ").slice(-1)[0].toLowerCase();
-        surnameMap.set(surname, { espnPlayerId: p.espn_player_id, fullName: p.full_name });
-      }
+      const playerRefs = players.rows.map((p) => ({ espnPlayerId: p.espn_player_id, fullName: p.full_name }));
       const livParse = await getLivLeaderboard(livSlug);
-      board = normalizeLivParse(livSlug, livParse, surnameMap);
+      board = normalizeLivParse(livSlug, livParse, playerRefs);
       console.log(`[scoreSync] LIV scrape succeeded for tournament ${tournamentId}: ${board.players.length} player-rounds`);
 
       // Shotgun-start "holes remaining" estimate for the leaderboard
       // header - best-effort, never blocks the score sync.
       try {
-        const holesRemaining = await estimateHolesRemaining(livSlug, livParse, surnameMap);
+        const holesRemaining = await estimateHolesRemaining(livSlug, livParse, playerRefs);
         await query(`update tournaments set holes_remaining = $1 where id = $2`, [holesRemaining, tournamentId]);
       } catch (err) {
         console.error(`[scoreSync] holes-remaining estimate failed (non-fatal):`, err);
