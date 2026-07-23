@@ -307,7 +307,14 @@ export interface Headline {
 }
 
 export interface LeaderboardResponse {
-  tournament: { id: string; name: string; totalRounds: number; status: string } | null;
+  tournament: {
+    id: string;
+    name: string;
+    totalRounds: number;
+    status: string;
+    tour: string | null;
+    holesRemaining: number | null;
+  } | null;
   teams: LeaderboardTeam[];
 }
 

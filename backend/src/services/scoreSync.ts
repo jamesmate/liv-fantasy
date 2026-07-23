@@ -13,7 +13,7 @@
  */
 
 import { getLeaderboard, NormalizedLeaderboard } from "../adapters/espnGolf";
-import { getLivNormalizedLeaderboard } from "../adapters/livGolf";
+import { getLivLeaderboard, normalizeLivParse, estimateHolesRemaining } from "../adapters/livGolf";
 import { query } from "../db/client";
 
 export async function syncTournamentScores(tournamentId: string, espnEventId: string | null) {
@@ -50,8 +50,18 @@ export async function syncTournamentScores(tournamentId: string, espnEventId: st
         const surname = p.full_name.split(" ").slice(-1)[0].toLowerCase();
         surnameMap.set(surname, { espnPlayerId: p.espn_player_id, fullName: p.full_name });
       }
-      board = await getLivNormalizedLeaderboard(livSlug, surnameMap);
+      const livParse = await getLivLeaderboard(livSlug);
+      board = normalizeLivParse(livSlug, livParse, surnameMap);
       console.log(`[scoreSync] LIV scrape succeeded for tournament ${tournamentId}: ${board.players.length} player-rounds`);
+
+      // Shotgun-start "holes remaining" estimate for the leaderboard
+      // header - best-effort, never blocks the score sync.
+      try {
+        const holesRemaining = await estimateHolesRemaining(livSlug, livParse, surnameMap);
+        await query(`update tournaments set holes_remaining = $1 where id = $2`, [holesRemaining, tournamentId]);
+      } catch (err) {
+        console.error(`[scoreSync] holes-remaining estimate failed (non-fatal):`, err);
+      }
     } catch (err) {
       console.error(`[scoreSync] LIV scrape failed for tournament ${tournamentId}:`, err);
       throw err;

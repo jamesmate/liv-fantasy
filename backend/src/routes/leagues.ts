@@ -549,8 +549,8 @@ leagueRouter.get("/:id/recap", async (req, res) => {
 // /standings.
 leagueRouter.get("/:id/leaderboard", async (req, res) => {
   try {
-  const tournament = await query<{ id: string; name: string; total_rounds: number; status: string }>(
-    `select id, name, total_rounds, status from tournaments where league_id = $1 order by created_at desc limit 1`,
+  const tournament = await query<{ id: string; name: string; total_rounds: number; status: string; tour: string | null; holes_remaining: number | null }>(
+    `select id, name, total_rounds, status, tour, holes_remaining from tournaments where league_id = $1 order by created_at desc limit 1`,
     [req.params.id]
   );
   if (tournament.rows.length === 0) {
@@ -809,7 +809,14 @@ leagueRouter.get("/:id/leaderboard", async (req, res) => {
   });
 
   res.json({
-    tournament: { id: tournamentId, name: tournamentName, totalRounds, status: tournamentStatus },
+    tournament: {
+      id: tournamentId,
+      name: tournamentName,
+      totalRounds,
+      status: tournamentStatus,
+      tour: tournament.rows[0].tour,
+      holesRemaining: tournament.rows[0].holes_remaining,
+    },
     teams: resultWithPoints,
   });
   } catch (err) {

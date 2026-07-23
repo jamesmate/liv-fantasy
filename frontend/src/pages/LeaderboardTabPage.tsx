@@ -136,9 +136,19 @@ export default function LeaderboardTabPage() {
     <Box p="md">
       {leagueId && <TournamentRecap leagueId={leagueId} />}
       <Group justify="space-between" align="center" mb="xs">
-        <Text size="lg" fw={800} c="forest.9">
-          {data.tournament.name}
-        </Text>
+        <Box>
+          <Text size="lg" fw={800} c="forest.9">
+            {data.tournament.name}
+          </Text>
+          {data.tournament.tour === "LIV" &&
+            data.tournament.status === "live" &&
+            data.tournament.holesRemaining !== null &&
+            data.tournament.holesRemaining > 0 && (
+              <Text size="xs" fw={700} c="tangerine.7">
+                {data.tournament.holesRemaining} {data.tournament.holesRemaining === 1 ? "hole" : "holes"} remaining
+              </Text>
+            )}
+        </Box>
         <Group gap={0} style={{ border: "1px solid var(--mantine-color-forest-3)", borderRadius: 6, overflow: "hidden" }}>
           <UnstyledButton
             onClick={() => setShowBonus(false)}

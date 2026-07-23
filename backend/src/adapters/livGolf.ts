@@ -268,16 +268,14 @@ export function livRowToNormalizedRounds(
 }
 
 /**
- * Top-level: fetches + normalizes the full LIV leaderboard for an
- * event slug, matching players by surname against the provided map
- * (built from tournament_players in the DB).
+ * Normalizes an already-fetched leaderboard parse (see
+ * getLivNormalizedLeaderboard for the fetch-and-normalize wrapper).
  */
-export async function getLivNormalizedLeaderboard(
+export function normalizeLivParse(
   eventSlug: string,
-  surnameToPlayer: Map<string, { espnPlayerId: string; fullName: string }>,
-  season: number = 2026
-): Promise<NormalizedLeaderboard> {
-  const parse = await getLivLeaderboard(eventSlug, season);
+  parse: LivLeaderboardParse,
+  surnameToPlayer: Map<string, { espnPlayerId: string; fullName: string }>
+): NormalizedLeaderboard {
   const players: NormalizedPlayerRound[] = [];
 
   for (const row of parse.rows) {
@@ -299,6 +297,20 @@ export async function getLivNormalizedLeaderboard(
     eventCompleted: parse.currentRoundFinished && parse.currentRound >= 4,
     players,
   };
+}
+
+/**
+ * Top-level: fetches + normalizes the full LIV leaderboard for an
+ * event slug, matching players by surname against the provided map
+ * (built from tournament_players in the DB).
+ */
+export async function getLivNormalizedLeaderboard(
+  eventSlug: string,
+  surnameToPlayer: Map<string, { espnPlayerId: string; fullName: string }>,
+  season: number = 2026
+): Promise<NormalizedLeaderboard> {
+  const parse = await getLivLeaderboard(eventSlug, season);
+  return normalizeLivParse(eventSlug, parse, surnameToPlayer);
 }
 
 
@@ -430,4 +442,47 @@ export function parseLivScorecardHtml(html: string): LivScorecardRound[] {
     rounds.push({ roundNumber: r + 1, holes });
   }
   return rounds;
+}
+
+/**
+ * Estimates how many holes remain in the current round - the number
+ * LIV broadcasts show during shotgun starts, where per-player "thru"
+ * is meaningless but everyone finishes at roughly the same time.
+ *
+ * Works by sampling up to `sampleSize` in-progress players' scorecard
+ * pages and counting how many hole scores are missing from their
+ * current-round chunk (18 minus scores present - hole ALIGNMENT under
+ * shotgun starts is unknowable from the page, but the COUNT is exact).
+ * Takes the max across samples since groups move at different speeds.
+ *
+ * Returns null when nobody is mid-round (between rounds / event over).
+ */
+export async function estimateHolesRemaining(
+  eventSlug: string,
+  parse: LivLeaderboardParse,
+  surnameToPlayer: Map<string, { espnPlayerId: string; fullName: string }>,
+  season: number = 2026,
+  sampleSize: number = 3
+): Promise<number | null> {
+  const inProgress = parse.rows.filter(
+    (r) => !r.withdrawn && /^\d+$/.test(r.holeToken) && r.rounds[parse.currentRound - 1] !== null
+  );
+  if (inProgress.length === 0) return null;
+
+  let maxRemaining: number | null = null;
+  for (const row of inProgress.slice(0, sampleSize)) {
+    const surname = livShortNameToSurname(row.shortName).toLowerCase();
+    const player = surnameToPlayer.get(surname);
+    if (!player) continue;
+    try {
+      const scorecard = await getLivPlayerScorecard(eventSlug, playerNameToLivSlug(player.fullName), season);
+      const roundData = scorecard.find((r) => r.roundNumber === parse.currentRound);
+      const played = roundData?.holes.length ?? 0;
+      const remaining = Math.max(0, 18 - played);
+      if (maxRemaining === null || remaining > maxRemaining) maxRemaining = remaining;
+    } catch {
+      // Sampling is best-effort - skip failures.
+    }
+  }
+  return maxRemaining;
 }

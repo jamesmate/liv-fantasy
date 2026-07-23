@@ -365,6 +365,13 @@ alter table player_round_scores add column if not exists manually_overridden boo
 -- of ESPN (see scoreSync.ts). Null for non-LIV events.
 alter table tournaments add column if not exists liv_event_slug text;
 
+-- Live "holes remaining in the current round" estimate for LIV
+-- shotgun-start events (where per-player "thru" is meaningless but
+-- the whole field finishes together). Updated by the LIV score sync;
+-- null when no round is in progress. Displayed at the top of the
+-- leaderboard in the app.
+alter table tournaments add column if not exists holes_remaining integer;
+
 -- ============================================================
 -- "Jamdog Interviews" - owner poses as a journalist, sends a
 -- question to one team, they answer, it publishes to the
