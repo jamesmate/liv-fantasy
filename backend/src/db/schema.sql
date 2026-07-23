@@ -349,6 +349,16 @@ create index if not exists idx_bonus_picks_round on bonus_picks(round_id);
 -- happened before this flag existed.
 alter table bonus_picks add column if not exists manually_overridden boolean not null default false;
 
+-- Same reasoning as bonus_picks.manually_overridden above - a manual
+-- SQL correction to a player's live score (the temporary fallback for
+-- when the automated ESPN sync is stuck on stale/delayed upstream
+-- data) was previously getting silently overwritten by the next
+-- automated sync cycle within ~3 minutes, since that sync had no way
+-- to know the row had just been manually fixed. This flag lets a
+-- manual UPDATE mark a row as "leave this alone" until the automated
+-- sync is deliberately allowed to take back over.
+alter table player_round_scores add column if not exists manually_overridden boolean not null default false;
+
 -- ============================================================
 -- "Jamdog Interviews" - owner poses as a journalist, sends a
 -- question to one team, they answer, it publishes to the

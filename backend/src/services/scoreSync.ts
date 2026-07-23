@@ -148,7 +148,8 @@ async function writeScoresToDb(tournamentId: string, board: NormalizedLeaderboar
              start_position = excluded.start_position,
              current_position = excluded.current_position,
              status = excluded.status,
-             updated_at = now()`,
+             updated_at = now()
+         where player_round_scores.manually_overridden = false`,
       [
         tournamentPlayerId,
         roundId,
