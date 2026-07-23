@@ -31,13 +31,17 @@ function formatToPar(n: number | null): string {
 // Shows how far through the round a pick is - or, if they haven't
 // teed off yet, their tee time instead (parsed to the viewer's local
 // time, not whatever timezone the course is in).
-function formatThruOrTeeTime(status: string, thru: number | null, teeTime: string | null): string {
+function formatThruOrTeeTime(status: string, thru: number | null, teeTime: string | null, isLiv: boolean): string {
   if (status === "not_started") {
     if (!teeTime) return "";
     return new Date(teeTime).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
   }
   if (thru === null || thru <= 0) return "";
   if (thru >= 18) return "F";
+  // LIV shotgun starts make per-player "thru" misleading (the number
+  // is the hole they're ON, not holes completed) - the global "holes
+  // remaining" banner at the top covers round progress instead.
+  if (isLiv) return "";
   return `Thru ${thru}`;
 }
 
@@ -227,6 +231,7 @@ export default function LeaderboardTabPage() {
                 showBonus={showBonus}
                 liveRoundNumber={liveRoundNumber}
                 showPtsColumn={showPtsColumn}
+                isLiv={data.tournament?.tour === "LIV"}
               />
             );
           });
@@ -247,6 +252,7 @@ function TeamRow({
   showBonus,
   liveRoundNumber,
   showPtsColumn,
+  isLiv,
 }: {
   team: LeaderboardTeam;
   position: number;
@@ -256,6 +262,7 @@ function TeamRow({
   showBonus: boolean;
   liveRoundNumber: number | null;
   showPtsColumn: boolean;
+  isLiv: boolean;
 }) {
   const [infoOpen, setInfoOpen] = useState(false);
   const bonusTotal = team.rounds.reduce((sum, r) => sum + (r.bonusPick?.points ?? 0), 0);
@@ -496,7 +503,7 @@ function TeamRow({
                             </Group>
                           )}
                           <Text size="9px" c="forest.3">
-                            {formatThruOrTeeTime(pick.status, pick.thru, pick.teeTime)}
+                            {formatThruOrTeeTime(pick.status, pick.thru, pick.teeTime, isLiv)}
                           </Text>
                         </Stack>
                       </Group>
