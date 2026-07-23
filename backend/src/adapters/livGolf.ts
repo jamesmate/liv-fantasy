@@ -265,3 +265,133 @@ export async function getLivNormalizedLeaderboard(
     players,
   };
 }
+
+/* ------------------------------------------------------------------ */
+/* Hole-by-hole scorecards                                             */
+/* ------------------------------------------------------------------ */
+
+/**
+ * livgolf.com serves per-player scorecard pages that are fully
+ * server-rendered (confirmed by fetching a real one during the UK 2026
+ * event - Bryson DeChambeau's page contained all 18 pars and all 18
+ * hole scores as plain text with no JavaScript needed):
+ *
+ *   https://www.livgolf.com/leaderboard/{season}/{eventSlug}/player/{playerSlug}
+ *
+ * The stripped page text contains, in order:
+ *   - round summary rows (R1..R4 with strokes + to-par, "-" if unplayed)
+ *   - hole numbers 1..18 as consecutive lines
+ *   - 18 par values
+ *   - 18 hole scores per PLAYED round, in round order (R1 first)
+ *
+ * This parser anchors on the "1..18 consecutive lines" hole-number
+ * sequence, takes the next 18 numbers as pars, then chunks everything
+ * numeric after that into groups of 18 as per-round hole scores.
+ */
+
+export interface LivHoleScore {
+  hole: number;
+  par: number;
+  score: number;
+}
+
+export interface LivScorecardRound {
+  roundNumber: number;
+  holes: LivHoleScore[];
+}
+
+/**
+ * Converts a player's full name into livgolf.com's URL slug format:
+ * lowercase, accents stripped, non-alphanumerics collapsed to hyphens.
+ * e.g. "Joaquín Niemann" -> "joaquin-niemann",
+ *      "Richard T. Lee"  -> "richard-t-lee"
+ */
+export function playerNameToLivSlug(fullName: string): string {
+  return fullName
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // strip diacritics
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export async function getLivPlayerScorecard(
+  eventSlug: string,
+  playerSlug: string,
+  season: number = 2026
+): Promise<LivScorecardRound[]> {
+  const url = `https://www.livgolf.com/leaderboard/${season}/${eventSlug}/player/${playerSlug}`;
+  const res = await fetch(url, {
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+      accept: "text/html,application/xhtml+xml,*/*;q=0.8",
+      "accept-language": "en-US,en;q=0.9",
+    },
+  });
+  if (!res.ok) {
+    throw new Error(`livgolf.com scorecard fetch failed (${res.status}) for ${playerSlug} @ ${eventSlug}`);
+  }
+  const html = await res.text();
+  return parseLivScorecardHtml(html);
+}
+
+export function parseLivScorecardHtml(html: string): LivScorecardRound[] {
+  const lines = html
+    .replace(/&amp;/g, "&")
+    .replace(/&nbsp;/g, " ")
+    .replace(/<[^>]+>/g, "\n")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+  // Find the anchor: 18 consecutive lines that are exactly "1".."18".
+  let holeStart = -1;
+  for (let i = 0; i + 18 <= lines.length; i++) {
+    let ok = true;
+    for (let h = 0; h < 18; h++) {
+      if (lines[i + h] !== String(h + 1)) {
+        ok = false;
+        break;
+      }
+    }
+    if (ok) {
+      holeStart = i;
+      break;
+    }
+  }
+  if (holeStart === -1) return [];
+
+  // Everything after the hole numbers: numeric lines are pars then
+  // round scores; "-" or non-numeric lines end a partial round /
+  // are skipped. The legend words ("Eagle or Better" etc.) terminate
+  // the numeric run naturally since they're not numeric.
+  const numbersAfter: number[] = [];
+  for (let i = holeStart + 18; i < lines.length; i++) {
+    const line = lines[i];
+    if (/^\d{1,2}$/.test(line)) {
+      numbersAfter.push(parseInt(line, 10));
+    } else if (numbersAfter.length >= 18) {
+      // Stop at the first non-number once we have at least pars -
+      // anything after the numeric run is legend/footer text.
+      break;
+    }
+  }
+
+  if (numbersAfter.length < 18) return [];
+
+  const pars = numbersAfter.slice(0, 18);
+  const scoreNumbers = numbersAfter.slice(18);
+
+  const rounds: LivScorecardRound[] = [];
+  for (let r = 0; r * 18 < scoreNumbers.length; r++) {
+    const chunk = scoreNumbers.slice(r * 18, r * 18 + 18);
+    const holes: LivHoleScore[] = chunk.map((score, idx) => ({
+      hole: idx + 1,
+      par: pars[idx],
+      score,
+    }));
+    rounds.push({ roundNumber: r + 1, holes });
+  }
+  return rounds;
+}

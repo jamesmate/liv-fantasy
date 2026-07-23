@@ -1,4 +1,9 @@
 import { query } from "../db/client";
+import {
+  getLivPlayerScorecard,
+  playerNameToLivSlug,
+  LivScorecardRound,
+} from "../adapters/livGolf";
 
 export interface BonusCategory {
   key: string;
@@ -216,8 +221,10 @@ export async function syncBonusPicksForRound(roundId: string): Promise<void> {
     tournament_id: string;
     espn_event_id: string | null;
     espn_league_slug: string;
+    tour: string | null;
+    liv_event_slug: string | null;
   }>(
-    `select r.round_number, r.bonus_category, r.tournament_id, t.espn_event_id, t.espn_league_slug
+    `select r.round_number, r.bonus_category, r.tournament_id, t.espn_event_id, t.espn_league_slug, t.tour, t.liv_event_slug
        from rounds r
        join tournaments t on t.id = r.tournament_id
       where r.id = $1`,
@@ -235,8 +242,8 @@ export async function syncBonusPicksForRound(roundId: string): Promise<void> {
   );
   if (Number(startedCheck.rows[0].count) === 0) return;
 
-  const picksResult = await query<{ id: string; tournament_player_id: string; espn_player_id: string | null }>(
-    `select bp.id, bp.tournament_player_id, tp.espn_player_id
+  const picksResult = await query<{ id: string; tournament_player_id: string; espn_player_id: string | null; full_name: string }>(
+    `select bp.id, bp.tournament_player_id, tp.espn_player_id, tp.full_name
        from bonus_picks bp
        join tournament_players tp on tp.id = bp.tournament_player_id
       where bp.round_id = $1 and bp.manually_overridden = false`,
@@ -278,6 +285,52 @@ export async function syncBonusPicksForRound(roundId: string): Promise<void> {
   }
 
   if (!HOLE_CATEGORIES.has(round.bonus_category)) return;
+
+  // LIV path: scrape hole-by-hole scorecards from livgolf.com's
+  // server-rendered per-player pages (ESPN has no data at all for LIV
+  // events). Confirmed working against a real live event - the page
+  // contains all 18 pars + hole scores as plain text.
+  // Note: for an IN-PROGRESS round, hole/par alignment can be
+  // imperfect (shotgun starts mean played holes aren't contiguous and
+  // the text parse can't see the gaps), so mid-round counts are
+  // best-effort - they become exact automatically once the round
+  // completes and all 18 scores are present.
+  if (round.tour === "LIV" && round.liv_event_slug) {
+    const byLivPlayer = new Map<string, { id: string }[]>();
+    const slugToName = new Map<string, string>();
+    for (const p of picksResult.rows) {
+      const slug = playerNameToLivSlug(p.full_name);
+      slugToName.set(slug, p.full_name);
+      const list = byLivPlayer.get(slug) ?? [];
+      list.push({ id: p.id });
+      byLivPlayer.set(slug, list);
+    }
+
+    let firstLiv = true;
+    for (const [playerSlug, bonusPickRows] of byLivPlayer) {
+      if (!firstLiv) await sleep(REQUEST_DELAY_MS);
+      firstLiv = false;
+      try {
+        const scorecard: LivScorecardRound[] = await getLivPlayerScorecard(round.liv_event_slug, playerSlug);
+        const roundData = scorecard.find((r) => r.roundNumber === round.round_number);
+        const scores = roundData?.holes.map((h) => ({ number: h.hole, mod: "", par: h.par, val: String(h.score) }));
+        const { points, breakdown } = calculateHolePointsFromScrape(round.bonus_category, scores);
+        console.log(
+          `[bonusPickSync] LIV ${playerSlug} round ${round.round_number}: holesFound=${roundData?.holes.length ?? 0} -> ${points}pts`
+        );
+        for (const pick of bonusPickRows) {
+          await query(`update bonus_picks set points = $1, breakdown = $2, last_synced_at = now() where id = $3`, [
+            points,
+            JSON.stringify(breakdown),
+            pick.id,
+          ]);
+        }
+      } catch (err) {
+        console.error(`[bonusPickSync] LIV scorecard failed for ${playerSlug} on round ${roundId}:`, err);
+      }
+    }
+    return;
+  }
 
   // Dedupe - if multiple members bonus-picked the same player this
   // round, only fetch ESPN once for that player.
