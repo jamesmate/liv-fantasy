@@ -16,6 +16,7 @@ import {
   Divider,
   CopyButton,
   Tooltip,
+  Select,
 } from "@mantine/core";
 import { DateTimePicker } from "@mantine/dates";
 import {
@@ -51,6 +52,8 @@ export default function AdminPage() {
 
   const [tournamentName, setTournamentName] = useState("");
   const [espnEventId, setEspnEventId] = useState("");
+  const [tour, setTour] = useState<string | null>(null);
+  const [livEventSlug, setLivEventSlug] = useState("");
   const [creating, setCreating] = useState(false);
 
   const [bulkText, setBulkText] = useState("");
@@ -144,9 +147,13 @@ export default function AdminPage() {
       await api.createTournament({
         name: tournamentName.trim(),
         espnEventId: espnEventId.trim() || undefined,
+        tour: tour || undefined,
+        livEventSlug: tour === "LIV" ? livEventSlug.trim() || undefined : undefined,
       });
       setTournamentName("");
       setEspnEventId("");
+      setTour(null);
+      setLivEventSlug("");
       await refresh();
     } catch (err: any) {
       setError(err.message);
@@ -387,6 +394,36 @@ export default function AdminPage() {
                   value={espnEventId}
                   onChange={(e) => setEspnEventId(e.currentTarget.value)}
                 />
+                <Select
+                  label="Tour"
+                  description="LIV events use livgolf.com for live scores instead of ESPN"
+                  placeholder="Select tour (optional)"
+                  clearable
+                  data={[
+                    { value: "LIV", label: "LIV Golf" },
+                    { value: "PGA", label: "PGA Tour" },
+                    { value: "DP World", label: "DP World Tour" },
+                  ]}
+                  value={tour}
+                  onChange={setTour}
+                />
+                {tour === "LIV" && (
+                  <TextInput
+                    label="LIV event slug"
+                    description={
+                      <>
+                        The last part of the livgolf.com leaderboard URL, e.g.{" "}
+                        <Text span ff="monospace" c="forest.8">
+                          livgolf.com/leaderboard/2026/uk
+                        </Text>{" "}
+                        → slug is <Text span ff="monospace" c="forest.8">uk</Text>
+                      </>
+                    }
+                    placeholder="uk"
+                    value={livEventSlug}
+                    onChange={(e) => setLivEventSlug(e.currentTarget.value)}
+                  />
+                )}
                 <Button type="submit" color="mint" loading={creating}>
                   {tournament ? "Create New Tournament" : "Create Tournament"}
                 </Button>

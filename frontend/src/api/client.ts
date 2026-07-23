@@ -497,6 +497,8 @@ export const api = {
     totalRounds?: number;
     espnEventId?: string;
     startsAt?: string;
+    tour?: string;
+    livEventSlug?: string;
   }) =>
     request<any>("/admin/tournaments", {
       method: "POST",
