@@ -13,6 +13,7 @@
  */
 
 import { getLeaderboard, NormalizedLeaderboard } from "../adapters/espnGolf";
+import { getLivNormalizedLeaderboard } from "../adapters/livGolf";
 import { query } from "../db/client";
 
 export async function syncTournamentScores(tournamentId: string, espnEventId: string | null) {
@@ -24,31 +25,62 @@ export async function syncTournamentScores(tournamentId: string, espnEventId: st
     );
   }
 
+  // Check whether this is a LIV event - if so, use the LIV scraper
+  // (livgolf.com) instead of ESPN, since ESPN does not provide live
+  // scoring data for LIV events (their feed stays on STATUS_SCHEDULED
+  // throughout the entire tournament, even after rounds are complete).
+  const tournamentMeta = await query<{ tour: string | null; liv_event_slug: string | null }>(
+    `select tour, liv_event_slug from tournaments where id = $1`,
+    [tournamentId]
+  );
+  const tour = tournamentMeta.rows[0]?.tour ?? null;
+  const livSlug = tournamentMeta.rows[0]?.liv_event_slug ?? null;
+
   let board: NormalizedLeaderboard;
 
-  try {
-    board = await getLeaderboard(espnEventId);
-    // Cache the good result for fallback use.
-    await query(
-      `insert into espn_snapshot_cache (tournament_id, raw_payload, fetched_at)
-       values ($1, $2, now())
-       on conflict (tournament_id) do update
-         set raw_payload = excluded.raw_payload, fetched_at = excluded.fetched_at`,
-      [tournamentId, JSON.stringify(board)]
-    );
-  } catch (err) {
-    console.error(`[scoreSync] ESPN fetch failed for tournament ${tournamentId}:`, err);
-    const cached = await query<{ raw_payload: NormalizedLeaderboard }>(
-      `select raw_payload from espn_snapshot_cache where tournament_id = $1`,
-      [tournamentId]
-    );
-    if (cached.rows.length === 0) {
-      throw new Error(
-        `No live data and no cached snapshot available for tournament ${tournamentId}`
+  if (tour === "LIV" && livSlug) {
+    // LIV path: scrape livgolf.com, match players by surname
+    try {
+      const players = await query<{ espn_player_id: string; full_name: string }>(
+        `select espn_player_id, full_name from tournament_players where tournament_id = $1 and espn_player_id is not null`,
+        [tournamentId]
       );
+      const surnameMap = new Map<string, { espnPlayerId: string; fullName: string }>();
+      for (const p of players.rows) {
+        const surname = p.full_name.split(" ").slice(-1)[0].toLowerCase();
+        surnameMap.set(surname, { espnPlayerId: p.espn_player_id, fullName: p.full_name });
+      }
+      board = await getLivNormalizedLeaderboard(livSlug, surnameMap);
+      console.log(`[scoreSync] LIV scrape succeeded for tournament ${tournamentId}: ${board.players.length} player-rounds`);
+    } catch (err) {
+      console.error(`[scoreSync] LIV scrape failed for tournament ${tournamentId}:`, err);
+      throw err;
     }
-    board = cached.rows[0].raw_payload;
-    console.warn(`[scoreSync] Falling back to cached snapshot for tournament ${tournamentId}`);
+  } else {
+    try {
+      board = await getLeaderboard(espnEventId);
+      // Cache the good result for fallback use.
+      await query(
+        `insert into espn_snapshot_cache (tournament_id, raw_payload, fetched_at)
+         values ($1, $2, now())
+         on conflict (tournament_id) do update
+           set raw_payload = excluded.raw_payload, fetched_at = excluded.fetched_at`,
+        [tournamentId, JSON.stringify(board)]
+      );
+    } catch (err) {
+      console.error(`[scoreSync] ESPN fetch failed for tournament ${tournamentId}:`, err);
+      const cached = await query<{ raw_payload: NormalizedLeaderboard }>(
+        `select raw_payload from espn_snapshot_cache where tournament_id = $1`,
+        [tournamentId]
+      );
+      if (cached.rows.length === 0) {
+        throw new Error(
+          `No live data and no cached snapshot available for tournament ${tournamentId}`
+        );
+      }
+      board = cached.rows[0].raw_payload;
+      console.warn(`[scoreSync] Falling back to cached snapshot for tournament ${tournamentId}`);
+    }
   }
 
   await writeScoresToDb(tournamentId, board);

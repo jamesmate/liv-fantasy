@@ -359,6 +359,12 @@ alter table bonus_picks add column if not exists manually_overridden boolean not
 -- sync is deliberately allowed to take back over.
 alter table player_round_scores add column if not exists manually_overridden boolean not null default false;
 
+-- The URL slug used for livgolf.com's leaderboard page for this
+-- tournament (e.g. "uk", "andalucia-2026") - only relevant for
+-- tournaments with tour='LIV', which use the LIV scraper instead
+-- of ESPN (see scoreSync.ts). Null for non-LIV events.
+alter table tournaments add column if not exists liv_event_slug text;
+
 -- ============================================================
 -- "Jamdog Interviews" - owner poses as a journalist, sends a
 -- question to one team, they answer, it publishes to the

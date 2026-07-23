@@ -46,7 +46,7 @@
 
 import { getLeaderboard } from "../adapters/espnGolf";
 
-const [, , espnEventIdArg, nameArg, parArg, roundsArg, tourArg] = process.argv;
+const [, , espnEventIdArg, nameArg, parArg, roundsArg, tourArg, livSlugArg] = process.argv;
 
 if (!espnEventIdArg || !nameArg) {
   console.error(
@@ -60,6 +60,7 @@ const TOURNAMENT_NAME = nameArg;
 const PAR = parArg ? Number(parArg) : 72;
 const TOTAL_ROUNDS = roundsArg ? Number(roundsArg) : 4;
 const TOUR = tourArg || null;
+const LIV_SLUG = livSlugArg || null;
 
 const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:3001";
 const SESSION_TOKEN = process.env.SESSION_TOKEN;
@@ -115,6 +116,7 @@ async function main() {
       totalRounds: TOTAL_ROUNDS,
       espnEventId: ESPN_EVENT_ID,
       tour: TOUR,
+      livEventSlug: LIV_SLUG,
     }),
   });
   console.log(`Created tournament ${tournament.id}.`);

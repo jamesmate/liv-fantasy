@@ -21,7 +21,7 @@ adminRouter.use(requireMember, requireOwner);
 // Creates a tournament for the owner's league and pre-creates its
 // rounds (default 4, matching LIV's 2026 format) in one transaction.
 adminRouter.post("/tournaments", async (req, res) => {
-  const { name, parTotal, totalRounds, espnEventId, startsAt, tour } = req.body;
+  const { name, parTotal, totalRounds, espnEventId, startsAt, tour, livEventSlug } = req.body;
   if (!name) return res.status(400).json({ error: "name is required." });
 
   const rounds = Number(totalRounds) > 0 ? Number(totalRounds) : 4;
@@ -30,10 +30,10 @@ adminRouter.post("/tournaments", async (req, res) => {
   try {
     const tournament = await withTransaction(async (client) => {
       const t = await client.query(
-        `insert into tournaments (league_id, name, espn_event_id, par, total_rounds, status, starts_at, tour)
-         values ($1, $2, $3, $4, $5, 'upcoming', $6, $7)
+        `insert into tournaments (league_id, name, espn_event_id, par, total_rounds, status, starts_at, tour, liv_event_slug)
+         values ($1, $2, $3, $4, $5, 'upcoming', $6, $7, $8)
          returning *`,
-        [req.member!.leagueId, name, espnEventId ?? null, par, rounds, startsAt ?? null, tour ?? null]
+        [req.member!.leagueId, name, espnEventId ?? null, par, rounds, startsAt ?? null, tour ?? null, livEventSlug ?? null]
       );
       const tournamentId = t.rows[0].id;
 
