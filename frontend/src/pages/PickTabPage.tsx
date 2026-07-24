@@ -33,6 +33,7 @@ import {
   DoublePlayStatus,
   CurrentTournament,
   MyPickWithScore,
+  MyBonusPick,
   getStoredTeamName,
 } from "../api/client";
 import { SelectedLineup } from "../components/SelectedLineup";
@@ -121,6 +122,8 @@ export default function PickTabPage() {
   const [scoredPicks, setScoredPicks] = useState<MyPickWithScore[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const [bonusPickData, setBonusPickData] = useState<MyBonusPick | null>(null);
+  const [highlightBonus, setHighlightBonus] = useState(false);
 
   const [needsSwap, setNeedsSwap] = useState<NeedsSwapPick[]>([]);
   const [swapTarget, setSwapTarget] = useState<NeedsSwapPick | null>(null);
@@ -275,6 +278,14 @@ export default function PickTabPage() {
       setStatus("saved");
       checkNeedsSwap();
       api.getDoublePlayStatus(roundId).then(setDoublePlayStatus).catch(() => {});
+
+      if (!bonusPickData?.pick) {
+        setHighlightBonus(true);
+        document.getElementById("bonus-pick-card")?.scrollIntoView({ behavior: "smooth", block: "center" });
+        // Pulse runs 3 times at 1s each - clear after so it can
+        // retrigger on a future submit if still missing.
+        setTimeout(() => setHighlightBonus(false), 3200);
+      }
     } catch (err: any) {
       setError(err.message || "Couldn't save picks.");
       setStatus("idle");
@@ -479,7 +490,12 @@ export default function PickTabPage() {
           </Box>
         </Box>
 
-        <BonusPickCard roundId={roundId} isLocked={isLocked} />
+        <BonusPickCard
+          roundId={roundId}
+          isLocked={isLocked}
+          onDataChange={setBonusPickData}
+          highlight={highlightBonus}
+        />
       </Box>
 
       {/* Bottom 2/3: scrollable player list */}
@@ -738,6 +754,11 @@ export default function PickTabPage() {
           {error && (
             <Alert color="coral" icon={<IconAlertTriangle size={18} />} mb="xs">
               {error}
+            </Alert>
+          )}
+          {status === "saved" && !bonusPickData?.pick && (
+            <Alert color="tangerine" icon={<IconAlertTriangle size={18} />} mb="xs">
+              Don't forget to pick a Bonus Player above ↑ - it's worth extra points!
             </Alert>
           )}
           <Button

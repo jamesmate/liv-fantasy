@@ -12,3 +12,10 @@
     font-size: 16px !important;
   }
 }
+
+/* Attention pulse for the bonus pick card when someone submits main
+   picks without setting one - see BonusPickCard's `highlight` prop. */
+@keyframes bonus-pick-pulse {
+  0%, 100% { box-shadow: 0 0 0 3px var(--mantine-color-tangerine-4); }
+  50% { box-shadow: 0 0 0 3px var(--mantine-color-tangerine-2); }
+}

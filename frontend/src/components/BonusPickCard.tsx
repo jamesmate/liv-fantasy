@@ -8,6 +8,16 @@ import { AnimatedGolferSprite } from "./sprites/AnimatedGolferSprite";
 interface BonusPickCardProps {
   roundId: string | null;
   isLocked: boolean;
+  // Notifies the parent whenever the current bonus pick state is
+  // known, so PickTabPage can warn at submit time if it's still
+  // empty - the parent has no other way to see into this card's
+  // internally-managed state.
+  onDataChange?: (data: MyBonusPick | null) => void;
+  // True right after a Submit Picks press that had no bonus pick set
+  // - draws a pulsing attention border so it's not missed a second
+  // time, matching the number of people who submit main picks and
+  // don't notice the bonus card sitting quietly below.
+  highlight?: boolean;
 }
 
 /**
@@ -20,7 +30,7 @@ interface BonusPickCardProps {
  * eligible, scored against a category randomized once per round for
  * the whole league (see BONUS_CATEGORY_INFO / bonusPickSync.ts).
  */
-export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
+export function BonusPickCard({ roundId, isLocked, onDataChange, highlight }: BonusPickCardProps) {
   const [data, setData] = useState<MyBonusPick | null>(null);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [players, setPlayers] = useState<BonusEligiblePlayer[]>([]);
@@ -29,7 +39,17 @@ export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
 
   useEffect(() => {
     if (!roundId) return;
-    api.getMyBonusPick(roundId).then(setData).catch(() => {});
+    api
+      .getMyBonusPick(roundId)
+      .then((d) => {
+        setData(d);
+        onDataChange?.(d);
+      })
+      .catch(() => {});
+    // onDataChange intentionally omitted from deps - it's a fresh
+    // function identity from the parent on every render, and this
+    // effect should only re-run when the round itself changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roundId]);
 
   // Explicit "Pick" button press is what reveals the player list - the
@@ -48,6 +68,7 @@ export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
       await api.submitBonusPick(roundId, playerId);
       const refreshed = await api.getMyBonusPick(roundId);
       setData(refreshed);
+      onDataChange?.(refreshed);
       setPickerOpen(false);
       setSearch("");
     } catch {
@@ -69,10 +90,19 @@ export function BonusPickCard({ roundId, isLocked }: BonusPickCardProps) {
 
   return (
     <>
-      <Box px="md" pt={6} pb={2} style={{ flexShrink: 0 }}>
+      <Box id="bonus-pick-card" px="md" pt={6} pb={2} style={{ flexShrink: 0 }}>
         <Card
           p={0}
-          style={{ border: "2px dotted var(--mantine-color-tangerine-5)", overflow: "hidden" }}
+          style={{
+            border: `2px dotted var(--mantine-color-tangerine-5)`,
+            overflow: "hidden",
+            ...(highlight
+              ? {
+                  boxShadow: "0 0 0 3px var(--mantine-color-tangerine-4)",
+                  animation: "bonus-pick-pulse 1s ease-in-out 3",
+                }
+              : {}),
+          }}
         >
           <Box px={8} pt={6} pb={2}>
             <Text size="9px" fw={700} c="tangerine.7" tt="uppercase">
